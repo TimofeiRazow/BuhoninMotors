@@ -1,0 +1,538 @@
+# =============================================================================
+# KOLESA.KZ BACKEND - .gitignore
+# =============================================================================
+
+# =============================================================================
+# ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ И КОНФИГУРАЦИЯ
+# =============================================================================
+.env
+.env.*
+!.env.example
+config/local.py
+config/production.py
+config/development.py
+secrets.yaml
+secrets.json
+
+# =============================================================================
+# PYTHON
+# =============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# =============================================================================
+# БАЗА ДАННЫХ
+# =============================================================================
+
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+
+# PostgreSQL dumps
+*.sql
+*.dump
+pg_dump_*
+database_backup_*
+
+# MySQL
+*.mysql
+
+# =============================================================================
+# ЛОГИ
+# =============================================================================
+
+# Общие логи
+logs/
+*.log
+*.log.*
+log/
+*.out
+*.err
+
+# Специфичные логи приложения
+app.log
+error.log
+access.log
+debug.log
+celery.log
+gunicorn.log
+nginx.log
+
+# Логи системы
+syslog
+kern.log
+auth.log
+
+# =============================================================================
+# UPLOADS И МЕДИА ФАЙЛЫ
+# =============================================================================
+
+# Папки для загрузок
+uploads/
+media/
+static/uploads/
+user_uploads/
+temp_uploads/
+files/
+
+# Изображения
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.svg
+*.webp
+
+# Видео
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+
+# Аудио
+*.mp3
+*.wav
+*.ogg
+*.m4a
+
+# Документы
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+
+# Архивы
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.bz2
+
+# Исключения для примеров
+!static/examples/
+!docs/images/
+!README_images/
+
+# =============================================================================
+# КЭШИРОВАНИЕ
+# =============================================================================
+
+# Redis dumps
+dump.rdb
+*.rdb
+
+# Memcached
+*.pid
+
+# Кэш приложения
+cache/
+.cache/
+*.cache
+
+# =============================================================================
+# СЕССИИ И ВРЕМЕННЫЕ ФАЙЛЫ
+# =============================================================================
+
+# Сессии Flask
+sessions/
+flask_session/
+
+# Временные файлы
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Backup файлы
+*.bak
+*.backup
+*.old
+*.orig
+
+# =============================================================================
+# IDE И РЕДАКТОРЫ
+# =============================================================================
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+\#*\#
+.\#*
+*~
+.#*
+
+# Atom
+.atom/
+
+# =============================================================================
+# ОПЕРАЦИОННЫЕ СИСТЕМЫ
+# =============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# DOCKER
+# =============================================================================
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+docker-compose.local.yml
+.docker/
+
+# =============================================================================
+# МОНИТОРИНГ И МЕТРИКИ
+# =============================================================================
+
+# Prometheus
+prometheus/
+*.prom
+
+# Grafana
+grafana/
+
+# New Relic
+newrelic.ini
+
+# =============================================================================
+# ТЕСТИРОВАНИЕ
+# =============================================================================
+
+# Тестовые данные
+test_data/
+test_uploads/
+test_media/
+fixtures/
+*.fixture
+
+# =============================================================================
+# РЕЗЕРВНЫЕ КОПИИ
+# =============================================================================
+
+# Backup файлы
+backups/
+backup_*
+*.backup
+*.bak
+
+# =============================================================================
+# SSL СЕРТИФИКАТЫ
+# =============================================================================
+
+# SSL сертификаты
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+ssl/
+certs/
+certificates/
+
+# =============================================================================
+# API КЛЮЧИ И СЕКРЕТЫ
+# =============================================================================
+
+# Файлы с секретами
+secrets/
+keys/
+credentials/
+.secrets/
+api_keys.txt
+tokens.txt
+
+# =============================================================================
+# МИГРАЦИИ (временные файлы)
+# =============================================================================
+
+# Временные файлы миграций
+migrations/versions/*.pyc
+alembic.ini.bak
+
+# =============================================================================
+# ДОПОЛНИТЕЛЬНЫЕ ФАЙЛЫ РАЗРАБОТКИ
+# =============================================================================
+
+# Файлы профилирования
+*.prof
+prof/
+profiling/
+
+# Документация (автосгенерированная)
+docs/build/
+docs/_build/
+site/
+
+# Статистика покрытия кода
+htmlcov/
+.coverage
+
+# Файлы для отладки
+debug/
+*.debug
+
+# =============================================================================
+# СПЕЦИФИЧНЫЕ ДЛЯ ПРОЕКТА
+# =============================================================================
+
+# Локальные скрипты разработчика
+scripts/local/
+local_scripts/
+dev_scripts/
+
+# Файлы конфигурации для разработки
+config_local.py
+settings_local.py
+
+# Данные для разработки
+dev_data/
+sample_data/
+seed_data/
+
+# =============================================================================
+# ИСКЛЮЧЕНИЯ (НЕ ИГНОРИРОВАТЬ)
+# =============================================================================
+
+# Важные конфигурационные файлы
+!alembic.ini
+!requirements.txt
+!requirements/
+!Dockerfile
+!docker-compose.yml
+!nginx.conf
+!gunicorn.conf.py
+
+# Примеры и документация
+!examples/
+!docs/
+!README.md
+!CHANGELOG.md
+!LICENSE
+
+# Статические файлы для продакшена
+!static/css/
+!static/js/
+!static/images/icons/
+
+# Шаблоны
+!templates/
+
+# =============================================================================
+# ДОПОЛНИТЕЛЬНЫЕ ПРИМЕЧАНИЯ
+# =============================================================================
+
+# ВАЖНО:
+# 1. Всегда проверяйте, что чувствительные данные не попадают в git
+# 2. Используйте git secrets или аналогичные инструменты
+# 3. Регулярно обновляйте .gitignore при добавлении новых типов файлов
+# 4. Будьте осторожны с исключениями (!filename)
+
+# ПРОВЕРКА:
+# Используйте команды для проверки:
+# git status --ignored
+# git ls-files --ignored --exclude-standard

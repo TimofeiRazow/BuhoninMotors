@@ -1,0 +1,302 @@
+# Структура Flask Backend проекта Kolesa.kz
+
+## Корневая структура проекта
+
+```
+kolesa_backend/
+├── app/
+│   ├── __init__.py                    # Flask app factory
+│   ├── config.py                      # Конфигурация приложения
+│   ├── extensions.py                  # Инициализация расширений
+│   ├── database.py                    # Подключение к БД и базовые модели
+│   ├── utils/                         # Утилиты
+│   │   ├── __init__.py
+│   │   ├── decorators.py              # Декораторы (auth, validation)
+│   │   ├── validators.py              # Валидаторы данных
+│   │   ├── helpers.py                 # Вспомогательные функции
+│   │   ├── pagination.py              # Пагинация
+│   │   ├── search.py                  # Поисковые функции
+│   │   └── exceptions.py              # Кастомные исключения
+│   ├── models/                        # SQLAlchemy модели
+│   │   ├── __init__.py
+│   │   ├── base.py                    # Базовые модели
+│   │   ├── user.py                    # User, UserProfile, UserSettings
+│   │   ├── location.py                # Countries, Regions, Cities
+│   │   ├── category.py                # Categories, CategoryTrees
+│   │   ├── listing.py                 # Listings, ListingDetails, ListingAttributes
+│   │   ├── car.py                     # Car_Brands, Car_Models, etc.
+│   │   ├── conversation.py            # Conversations, Messages
+│   │   ├── media.py                   # Media_Storage
+│   │   ├── notification.py           # Notifications, Templates
+│   │   ├── payment.py                 # Payments, Promotions
+│   │   ├── review.py                  # Reviews
+│   │   └── support.py                 # Support tickets
+│   ├── blueprints/                    # API blueprints
+│   │   ├── __init__.py
+│   │   ├── auth/                      # Аутентификация
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py              # Роуты аутентификации
+│   │   │   ├── services.py            # Бизнес-логика аутентификации
+│   │   │   └── schemas.py             # Marshmallow схемы
+│   │   ├── users/                     # Управление пользователями
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py
+│   │   │   ├── services.py
+│   │   │   └── schemas.py
+│   │   ├── listings/                  # Объявления
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py
+│   │   │   ├── services.py
+│   │   │   ├── schemas.py
+│   │   │   └── search.py              # Поиск объявлений
+│   │   ├── cars/                      # Автомобильные справочники
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py
+│   │   │   ├── services.py
+│   │   │   └── schemas.py
+│   │   ├── locations/                 # Географические данные
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py
+│   │   │   ├── services.py
+│   │   │   └── schemas.py
+│   │   ├── conversations/             # Диалоги и сообщения
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py
+│   │   │   ├── services.py
+│   │   │   ├── schemas.py
+│   │   │   └── websocket.py           # WebSocket для real-time
+│   │   ├── media/                     # Загрузка файлов
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py
+│   │   │   ├── services.py
+│   │   │   └── upload.py              # Обработка загрузок
+│   │   ├── notifications/             # Уведомления
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py
+│   │   │   ├── services.py
+│   │   │   └── push.py                # Push-уведомления
+│   │   ├── payments/                  # Платежи и продвижение
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py
+│   │   │   ├── services.py
+│   │   │   └── providers.py           # Платежные провайдеры
+│   │   ├── admin/                     # Административная панель
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py
+│   │   │   ├── services.py
+│   │   │   └── moderation.py          # Модерация контента
+│   │   └── support/                   # Поддержка
+│   │       ├── __init__.py
+│   │       ├── routes.py
+│   │       ├── services.py
+│   │       └── schemas.py
+│   ├── tasks/                         # Celery задачи
+│   │   ├── __init__.py
+│   │   ├── notifications.py           # Отправка уведомлений
+│   │   ├── indexing.py                # Индексация для поиска
+│   │   ├── cleanup.py                 # Очистка данных
+│   │   └── analytics.py               # Аналитика
+│   └── tests/                         # Тесты
+│       ├── __init__.py
+│       ├── conftest.py                # Pytest конфигурация
+│       ├── test_auth.py
+│       ├── test_listings.py
+│       ├── test_users.py
+│       └── ...
+├── migrations/                        # Alembic миграции
+│   ├── versions/
+│   ├── alembic.ini
+│   ├── env.py
+│   └── script.py.mako
+├── scripts/                           # Скрипты управления
+│   ├── init_db.py                     # Инициализация БД
+│   ├── seed_data.py                   # Заполнение тестовыми данными
+│   └── migrate.py                     # Миграции
+├── docker/                            # Docker конфигурация
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   └── docker-compose.dev.yml
+├── nginx/                             # Nginx конфигурация
+│   └── nginx.conf
+├── requirements/                      # Зависимости
+│   ├── base.txt                       # Базовые зависимости
+│   ├── dev.txt                        # Для разработки
+│   └── prod.txt                       # Для продакшена
+├── .env.example                       # Пример переменных окружения
+├── .gitignore
+├── README.md
+├── run.py                             # Точка входа
+└── wsgi.py                            # WSGI entry point для продакшена
+```
+
+## Основные компоненты
+
+### 1. Blueprints (API модули)
+
+#### Auth Blueprint (`/api/auth`)
+- `POST /register` - Регистрация
+- `POST /login` - Вход
+- `POST /logout` - Выход
+- `POST /refresh` - Обновление JWT токена
+- `POST /verify-phone` - Верификация телефона
+- `POST /verify-email` - Верификация email
+- `POST /reset-password` - Сброс пароля
+
+#### Users Blueprint (`/api/users`)
+- `GET /profile` - Профиль пользователя
+- `PUT /profile` - Обновление профиля
+- `GET /settings` - Настройки пользователя
+- `PUT /settings` - Обновление настроек
+- `GET /stats` - Статистика пользователя
+- `GET /{user_id}/reviews` - Отзывы о пользователе
+
+#### Listings Blueprint (`/api/listings`)
+- `GET /` - Поиск объявлений
+- `POST /` - Создание объявления
+- `GET /{id}` - Получение объявления
+- `PUT /{id}` - Обновление объявления
+- `DELETE /{id}` - Удаление объявления
+- `POST /{id}/favorite` - Добавить в избранное
+- `GET /favorites` - Избранные объявления
+- `POST /{id}/view` - Увеличить счетчик просмотров
+
+#### Cars Blueprint (`/api/cars`)
+- `GET /brands` - Марки автомобилей
+- `GET /brands/{id}/models` - Модели по марке
+- `GET /models/{id}/generations` - Поколения модели
+- `GET /attributes` - Атрибуты автомобилей
+- `GET /body-types` - Типы кузова
+- `GET /engine-types` - Типы двигателей
+
+#### Locations Blueprint (`/api/locations`)
+- `GET /countries` - Страны
+- `GET /regions` - Регионы
+- `GET /cities` - Города
+- `GET /cities/search` - Поиск городов
+
+#### Conversations Blueprint (`/api/conversations`)
+- `GET /` - Список диалогов
+- `POST /` - Создание диалога
+- `GET /{id}/messages` - Сообщения диалога
+- `POST /{id}/messages` - Отправка сообщения
+- `PUT /messages/{id}/read` - Отметить как прочитанное
+
+### 2. Модели данных
+
+Каждый файл модели содержит соответствующие SQLAlchemy модели:
+
+- **user.py**: User, UserProfile, UserSettings, DeviceRegistration
+- **listing.py**: Listing, ListingDetails, ListingAttributes, ListingFeatures
+- **car.py**: CarBrand, CarModel, CarGeneration, CarAttributes и т.д.
+- **conversation.py**: Conversation, Message, ConversationParticipant
+- **media.py**: MediaStorage с методами для работы с файлами
+
+### 3. Сервисы (бизнес-логика)
+
+Каждый blueprint содержит services.py с бизнес-логикой:
+
+```python
+# Пример структуры сервиса
+class ListingService:
+    @staticmethod
+    def create_listing(user_id, data):
+        # Создание объявления
+        pass
+    
+    @staticmethod
+    def search_listings(filters):
+        # Поиск с фильтрами
+        pass
+    
+    @staticmethod
+    def get_by_location(lat, lng, radius):
+        # Поиск по геолокации
+        pass
+```
+
+### 4. Аутентификация и авторизация
+
+- JWT токены (access + refresh)
+- Декораторы для проверки прав доступа
+- Middleware для валидации токенов
+- Роли пользователей (regular, pro, dealer, admin)
+
+### 5. Валидация данных
+
+Marshmallow схемы для валидации входящих данных:
+
+```python
+# Пример схемы
+class CreateListingSchema(Schema):
+    title = fields.Str(required=True, validate=Length(min=5, max=255))
+    price = fields.Decimal(required=True, validate=Range(min=0))
+    description = fields.Str(validate=Length(max=5000))
+    # ...
+```
+
+### 6. Поиск и фильтрация
+
+- Полнотекстовый поиск с PostgreSQL
+- Геолокационный поиск
+- Фильтрация по атрибутам
+- Сортировка результатов
+
+### 7. Файловая система
+
+- Загрузка изображений и документов
+- Генерация thumbnails
+- Интеграция с облачными хранилищами
+- Валидация файлов
+
+### 8. Уведомления
+
+- Push-уведомления для мобильных устройств
+- Email уведомления
+- SMS уведомления
+- Внутренние уведомления
+
+### 9. Платежи и продвижение
+
+- Интеграция с платежными системами
+- Управление услугами продвижения
+- Автоматическое продление услуг
+
+### 10. Кэширование и производительность
+
+- Redis для кэширования
+- Пагинация результатов
+- Оптимизированные запросы к БД
+- Индексы для быстрого поиска
+
+## Технологический стек
+
+- **Flask** - основной фреймворк
+- **SQLAlchemy** - ORM
+- **Alembic** - миграции БД
+- **PostgreSQL** - база данных
+- **Redis** - кэширование и сессии
+- **Celery** - фоновые задачи
+- **JWT** - аутентификация
+- **Marshmallow** - валидация данных
+- **Flask-CORS** - CORS поддержка
+- **Gunicorn** - WSGI сервер
+- **Docker** - контейнеризация
+
+## Переменные окружения
+
+```
+DATABASE_URL=postgresql://user:pass@localhost/kolesa_db
+REDIS_URL=redis://localhost:6379/0
+JWT_SECRET_KEY=your-secret-key
+UPLOAD_FOLDER=/uploads
+MAX_CONTENT_LENGTH=16777216
+MAIL_SERVER=smtp.gmail.com
+CELERY_BROKER_URL=redis://localhost:6379/1
+```
+
+Эта структура обеспечивает:
+- Модульность и масштабируемость
+- Разделение ответственности
+- Легкость тестирования
+- Удобство разработки в команде
+- Простоту добавления новых функций
