@@ -1,4 +1,4 @@
-# app/models/moderation.py (дополнение к существующим моделям)
+# app/models/moderation.py
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, DECIMAL, Index
 from sqlalchemy.dialects.postgresql import JSONB
@@ -125,55 +125,3 @@ class ReportedContent(BaseModel):
             'resolver_name': self.resolver.full_name if self.resolver else None,
             'resolution_notes': self.resolution_notes
         }
-
-
-# app/blueprints/admin/schemas.py
-from marshmallow import Schema, fields, validate
-
-
-class ModerationActionSchema(Schema):
-    """Схема для действий модерации"""
-    action = fields.Str(required=True, validate=validate.OneOf(['approve', 'reject']))
-    reason = fields.Str(required=False, validate=validate.Length(max=1000))
-    notes = fields.Str(required=False, validate=validate.Length(max=2000))
-
-
-class ReportContentSchema(Schema):
-    """Схема для жалобы на контент"""
-    entity_id = fields.Int(required=True)
-    report_reason = fields.Str(required=True, validate=validate.OneOf([
-        'spam', 'fraud', 'inappropriate', 'duplicate', 'wrong_category', 'other'
-    ]))
-    description = fields.Str(required=False, validate=validate.Length(max=1000))
-
-
-class ResolveReportSchema(Schema):
-    """Схема для разрешения жалобы"""
-    action = fields.Str(required=True, validate=validate.OneOf(['resolve', 'dismiss']))
-    notes = fields.Str(required=False, validate=validate.Length(max=2000))
-
-
-class UserActionSchema(Schema):
-    """Схема для действий с пользователями"""
-    action = fields.Str(required=True, validate=validate.OneOf([
-        'block', 'unblock', 'warn', 'promote', 'demote'
-    ]))
-    reason = fields.Str(required=False, validate=validate.Length(max=1000))
-    duration_days = fields.Int(required=False, validate=validate.Range(min=1, max=365))
-
-
-class AdminStatsSchema(Schema):
-    """Схема для административной статистики"""
-    users_count = fields.Int(dump_only=True)
-    active_users_count = fields.Int(dump_only=True)
-    listings_count = fields.Int(dump_only=True)
-    active_listings_count = fields.Int(dump_only=True)
-    pending_moderation_count = fields.Int(dump_only=True)
-    reports_count = fields.Int(dump_only=True)
-    revenue_total = fields.Decimal(dump_only=True)
-    revenue_monthly = fields.Decimal(dump_only=True)
-
-
-
-
-

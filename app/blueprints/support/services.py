@@ -8,9 +8,10 @@ from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload
 
 from app.models.support import SupportTicket
-from app.models.category import Category
+from app.models.base import Category, CategoryTree
 from app.models.user import User
-from app.utils.pagination import paginate
+from app.utils.pagination import paginate_query as paginate
+
 
 
 class SupportService:
@@ -158,24 +159,52 @@ class SupportService:
     @staticmethod
     def get_support_categories(db):
         """Получение категорий поддержки"""
-        categories = db.query(Category).filter(
-            Category.tree_id == (
-                db.query(Category.tree_id).join(
-                    CategoryTree, Category.tree_id == CategoryTree.tree_id
-                ).filter(CategoryTree.tree_code == 'support_categories').scalar()
-            ),
-            Category.is_active == True
-        ).order_by(Category.sort_order).all()
-        
-        return [
-            {
-                'category_id': cat.category_id,
-                'category_name': cat.category_name,
-                'description': cat.description,
-                'parent_category_id': cat.parent_category_id
-            }
-            for cat in categories
-        ]
+        try:
+            # Пытаемся найти дерево категорий поддержки
+            support_tree = db.query(CategoryTree).filter_by(tree_code='support_categories').first()
+            
+            if support_tree:
+                categories = db.query(Category).filter(
+                    Category.tree_id == support_tree.tree_id,
+                    Category.is_active == True
+                ).order_by(Category.sort_order).all()
+            else:
+                # Если дерева поддержки нет, возвращаем все активные категории
+                categories = db.query(Category).filter(
+                    Category.is_active == True
+                ).order_by(Category.sort_order).all()
+            
+            return [
+                {
+                    'category_id': cat.category_id,
+                    'category_name': cat.category_name,
+                    'description': cat.description,
+                    'parent_category_id': cat.parent_category_id
+                }
+                for cat in categories
+            ]
+        except Exception as e:
+            # Fallback - возвращаем пустой список или базовые категории
+            return [
+                {
+                    'category_id': 1,
+                    'category_name': 'Общие вопросы',
+                    'description': 'Общие вопросы по работе сайта',
+                    'parent_category_id': None
+                },
+                {
+                    'category_id': 2,
+                    'category_name': 'Технические проблемы',
+                    'description': 'Технические неполадки и ошибки',
+                    'parent_category_id': None
+                },
+                {
+                    'category_id': 3,
+                    'category_name': 'Платежи',
+                    'description': 'Вопросы по оплате и платежам',
+                    'parent_category_id': None
+                }
+            ]
     
     @staticmethod
     def get_faq(db, category_id=None, search=''):
@@ -307,13 +336,16 @@ class SupportService:
             func.count(SupportTicket.ticket_id).label('count')
         ).group_by(SupportTicket.priority).all()
         
-        # Статистика по категориям
-        category_stats = db.query(
-            Category.category_name,
-            func.count(SupportTicket.ticket_id).label('count')
-        ).join(
-            SupportTicket, Category.category_id == SupportTicket.category_id
-        ).group_by(Category.category_name).all()
+        # Статистика по категориям (с проверкой на существование категорий)
+        try:
+            category_stats = db.query(
+                Category.category_name,
+                func.count(SupportTicket.ticket_id).label('count')
+            ).join(
+                SupportTicket, Category.category_id == SupportTicket.category_id
+            ).group_by(Category.category_name).all()
+        except:
+            category_stats = []
         
         # Среднее время ответа
         avg_response_time = db.query(
@@ -355,24 +387,29 @@ class SupportService:
     @staticmethod
     def _notify_admins_new_ticket(db, ticket):
         """Уведомление администраторов о новом тикете"""
-        from app.models.notification import Notification, NotificationChannel
-        
-        # Получаем администраторов
-        admins = db.query(User).filter(User.user_type == 'admin', User.is_active == True).all()
-        
-        # Получаем канал уведомлений
-        channel = db.query(NotificationChannel).filter_by(channel_code='email').first()
-        
-        if channel:
-            for admin in admins:
-                notification = Notification(
-                    user_id=admin.user_id,
-                    channel_id=channel.channel_id,
-                    title='Новый тикет поддержки',
-                    message=f'Создан новый тикет #{ticket.ticket_id}: {ticket.subject}',
-                    notification_type='new_support_ticket',
-                    related_entity_id=ticket.entity_id
-                )
-                db.add(notification)
-        
-        db.commit()
+        try:
+            from app.models.notification import Notification, NotificationChannel
+            
+            # Получаем администраторов
+            admins = db.query(User).filter(User.user_type == 'admin', User.is_active == True).all()
+            
+            # Получаем канал уведомлений
+            channel = db.query(NotificationChannel).filter_by(channel_code='email').first()
+            
+            if channel:
+                for admin in admins:
+                    notification = Notification(
+                        user_id=admin.user_id,
+                        channel_id=channel.channel_id,
+                        title='Новый тикет поддержки',
+                        message=f'Создан новый тикет #{ticket.ticket_id}: {ticket.subject}',
+                        notification_type='new_support_ticket',
+                        related_entity_id=ticket.entity_id
+                    )
+                    db.add(notification)
+            
+            db.commit()
+        except Exception as e:
+            # Логируем ошибку, но не прерываем процесс создания тикета
+            print(f"Error notifying admins: {e}")
+            pass

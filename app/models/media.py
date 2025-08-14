@@ -25,7 +25,7 @@ class MediaStorage(BaseModel):
     uploaded_date = Column(DateTime, default=datetime.utcnow)
     storage_provider = Column(String(50), default='local')
     external_id = Column(String(255))
-    metadata = Column(JSONB, default={})
+    meta_data = Column(JSONB, default={})
     
     __table_args__ = (
         db.CheckConstraint(
@@ -220,7 +220,7 @@ class MediaStorage(BaseModel):
             'alt_text': self.alt_text,
             'uploaded_date': self.uploaded_date.isoformat() if self.uploaded_date else None,
             'storage_provider': self.storage_provider,
-            'metadata': self.metadata
+            'meta_data': self.meta_data
         }
     
     def __repr__(self):

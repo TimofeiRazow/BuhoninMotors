@@ -12,7 +12,7 @@ from app.models.payment import PaymentTransaction, PromotionService as Promotion
 from app.models.listing import Listing
 from app.models.user import User
 from app.blueprints.payments.providers import PaymentProviderFactory
-from app.utils.pagination import paginate
+from app.utils.pagination import paginate_query as paginate
 
 
 class PaymentService:
@@ -173,7 +173,7 @@ class PaymentService:
             currency_id=original_transaction.currency_id,
             description=f'Refund for transaction #{transaction_id}: {reason}',
             status_id=1,  # pending
-            metadata={'original_transaction_id': transaction_id, 'reason': reason}
+            meta_data={'original_transaction_id': transaction_id, 'reason': reason}
         )
         
         db.add(refund_transaction)

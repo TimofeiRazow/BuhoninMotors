@@ -73,6 +73,7 @@ class GlobalEntity(BaseModel):
     
     entity_id = Column(BigInteger, primary_key=True)
     entity_type = Column(String(50), nullable=False)
+    support_tickets = db.relationship("SupportTicket", back_populates="entity")
     
     __table_args__ = (
         db.CheckConstraint(
@@ -226,3 +227,136 @@ def get_active_statuses(group_code):
         StatusGroup.group_code == group_code,
         Status.is_active == True
     ).order_by(Status.sort_order).all()
+
+# app/models/base.py
+"""
+Базовые модели для всех таблиц
+"""
+
+from datetime import datetime
+from sqlalchemy import Column, Integer, DateTime, Boolean, String
+from app.extensions import db
+
+
+class BaseModel(db.Model):
+    """Базовая модель с общими полями"""
+    __abstract__ = True
+    
+    created_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_date = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    def save(self):
+        """Сохранение объекта в базе данных"""
+        db.session.add(self)
+        db.session.commit()
+        return self
+    
+    def delete(self):
+        """Мягкое удаление объекта (установка is_active = False)"""
+        self.is_active = False
+        self.updated_date = datetime.utcnow()
+        db.session.commit()
+        return self
+    
+    def hard_delete(self):
+        """Жесткое удаление объекта из базы данных"""
+        db.session.delete(self)
+        db.session.commit()
+    
+    def update(self, **kwargs):
+        """Обновление полей объекта"""
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+        self.updated_date = datetime.utcnow()
+        db.session.commit()
+        return self
+    
+    def to_dict(self):
+        """Преобразование объекта в словарь"""
+        result = {}
+        for column in self.__table__.columns:
+            value = getattr(self, column.name)
+            if isinstance(value, datetime):
+                value = value.isoformat()
+            result[column.name] = value
+        return result
+    
+    @classmethod
+    def get_by_id(cls, id_value):
+        """Получение объекта по ID"""
+        return cls.query.filter_by(id=id_value, is_active=True).first()
+    
+    @classmethod
+    def get_all_active(cls):
+        """Получение всех активных объектов"""
+        return cls.query.filter_by(is_active=True).all()
+    
+    def __repr__(self):
+        return f'<{self.__class__.__name__} {getattr(self, "id", "unknown")}>'
+
+
+class EntityBasedModel(BaseModel):
+    """Модель с поддержкой мультитенантности через entity_id"""
+    __abstract__ = True
+    
+    entity_id = Column(Integer, nullable=True, index=True)  # ID сущности (для мультитенантности)
+    
+    @classmethod
+    def get_by_entity(cls, entity_id):
+        """Получение объектов по entity_id"""
+        return cls.query.filter_by(entity_id=entity_id, is_active=True).all()
+    
+    @classmethod
+    def get_by_id_and_entity(cls, id_value, entity_id):
+        """Получение объекта по ID и entity_id"""
+        return cls.query.filter_by(
+            id=id_value,
+            entity_id=entity_id,
+            is_active=True
+        ).first()
+
+
+class TimestampMixin:
+    """Миксин для добавления временных меток"""
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class SoftDeleteMixin:
+    """Миксин для мягкого удаления"""
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+    
+    def soft_delete(self):
+        """Мягкое удаление объекта"""
+        self.is_deleted = True
+        self.deleted_at = datetime.utcnow()
+        db.session.commit()
+    
+    def restore(self):
+        """Восстановление удаленного объекта"""
+        self.is_deleted = False
+        self.deleted_at = None
+        db.session.commit()
+    
+    @classmethod
+    def get_active(cls):
+        """Получение только не удаленных объектов"""
+        return cls.query.filter_by(is_deleted=False)
+
+
+class AuditMixin:
+    """Миксин для аудита изменений"""
+    created_by = Column(Integer, nullable=True)  # ID пользователя, создавшего запись
+    updated_by = Column(Integer, nullable=True)  # ID пользователя, обновившего запись
+    
+    def set_created_by(self, user_id):
+        """Установка создателя записи"""
+        self.created_by = user_id
+    
+    def set_updated_by(self, user_id):
+        """Установка пользователя, обновившего запись"""
+        self.updated_by = user_id
+        self.updated_date = datetime.utcnow()

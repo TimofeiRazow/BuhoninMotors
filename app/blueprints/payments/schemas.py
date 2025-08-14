@@ -21,7 +21,7 @@ class PaymentTransactionSchema(Schema):
     created_date = fields.DateTime()
     processed_date = fields.DateTime(allow_none=True)
     error_message = fields.Str(allow_none=True)
-    metadata = fields.Raw()
+    meta_data = fields.Raw()
 
 
 class PromotionServiceSchema(Schema):

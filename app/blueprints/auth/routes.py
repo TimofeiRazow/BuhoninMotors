@@ -2,7 +2,7 @@
 from flask import request, jsonify, g
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.blueprints.auth import bp
-from app.blueprints.auth.schemas import (
+from app.blueprints.auth.shemas import (
     RegisterSchema, LoginSchema, VerifyPhoneSchema, SendVerificationCodeSchema,
     VerifyEmailSchema, ResetPasswordSchema, ChangePasswordSchema, RefreshTokenSchema
 )

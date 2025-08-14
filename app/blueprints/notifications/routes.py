@@ -3,7 +3,7 @@
 Роуты для управления уведомлениями
 """
 
-from flask import request, jsonify, current_app
+from flask import request, jsonify, current_app, g
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
@@ -14,7 +14,7 @@ from app.blueprints.notifications.schemas import (
     SendNotificationSchema, NotificationTemplateSchema
 )
 from app.utils.decorators import admin_required, validate_json
-from app.utils.pagination import paginate
+from app.utils.pagination import paginate_query
 from app.database import get_db
 
 
@@ -163,28 +163,27 @@ def get_notification_settings():
 
 @notifications_bp.route('/settings', methods=['PUT'])
 @jwt_required()
-@validate_json
+@validate_json(NotificationSettingsSchema)  # Fixed: Added schema parameter
 def update_notification_settings():
     """Обновление настроек уведомлений"""
     try:
         user_id = get_jwt_identity()
         db = get_db()
         
-        schema = NotificationSettingsSchema(many=True)
-        settings_data = schema.load(request.json)
+        # Get validated data from g.validated_data (set by the decorator)
+        settings_data = g.validated_data
         
         updated_settings = NotificationService.update_notification_settings(
             db, user_id, settings_data
         )
         
+        schema = NotificationSettingsSchema(many=True)
         return jsonify({
             'success': True,
             'message': 'Notification settings updated successfully',
             'data': schema.dump(updated_settings)
         })
         
-    except ValidationError as e:
-        return jsonify({'error': 'Validation error', 'details': e.messages}), 400
     except Exception as e:
         current_app.logger.error(f"Error updating notification settings: {e}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -193,14 +192,14 @@ def update_notification_settings():
 @notifications_bp.route('/send', methods=['POST'])
 @jwt_required()
 @admin_required
-@validate_json
+@validate_json(SendNotificationSchema)  # Fixed: Added schema parameter
 def send_notification():
     """Отправка уведомления (только для админов)"""
     try:
         db = get_db()
         
-        schema = SendNotificationSchema()
-        data = schema.load(request.json)
+        # Get validated data from g.validated_data (set by the decorator)
+        data = g.validated_data
         
         notification = NotificationService.send_notification(db, data)
         
@@ -211,8 +210,6 @@ def send_notification():
             'data': response_schema.dump(notification)
         }), 201
         
-    except ValidationError as e:
-        return jsonify({'error': 'Validation error', 'details': e.messages}), 400
     except Exception as e:
         current_app.logger.error(f"Error sending notification: {e}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -221,16 +218,23 @@ def send_notification():
 @notifications_bp.route('/broadcast', methods=['POST'])
 @jwt_required()
 @admin_required
-@validate_json
 def broadcast_notification():
     """Массовая отправка уведомлений"""
     try:
         db = get_db()
         
-        title = request.json.get('title', '')
-        message = request.json.get('message', '')
-        notification_type = request.json.get('type', 'system')
-        user_filter = request.json.get('user_filter', {})
+        # Manual validation since we're not using @validate_json here
+        if not request.is_json:
+            return jsonify({'error': 'Request must be JSON'}), 400
+        
+        data = request.json or {}
+        title = data.get('title', '')
+        message = data.get('message', '')
+        notification_type = data.get('type', 'system')
+        user_filter = data.get('user_filter', {})
+        
+        if not title or not message:
+            return jsonify({'error': 'Title and message are required'}), 400
         
         count = NotificationService.broadcast_notification(
             db, title, message, notification_type, user_filter

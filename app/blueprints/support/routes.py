@@ -56,7 +56,7 @@ def get_user_tickets():
 
 @support_bp.route('/tickets', methods=['POST'])
 @jwt_required()
-@validate_json
+@validate_json(CreateTicketSchema)
 def create_ticket():
     """Создание нового тикета поддержки"""
     try:
@@ -107,7 +107,7 @@ def get_ticket(ticket_id):
 
 @support_bp.route('/tickets/<int:ticket_id>/response', methods=['POST'])
 @jwt_required()
-@validate_json
+@validate_json(TicketResponseSchema)
 def add_ticket_response():
     """Добавление ответа к тикету"""
     try:
@@ -239,7 +239,7 @@ def get_all_tickets():
 @support_bp.route('/admin/tickets/<int:ticket_id>', methods=['PUT'])
 @jwt_required()
 @admin_required
-@validate_json
+@validate_json(UpdateTicketSchema)
 def update_ticket(ticket_id):
     """Обновление тикета (для админов)"""
     try:

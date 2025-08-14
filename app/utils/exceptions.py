@@ -3,6 +3,74 @@
 Кастомные исключения для приложения
 """
 
+# app/utils/exceptions.py
+"""
+Пользовательские исключения для API
+"""
+
+
+class APIException(Exception):
+    """Базовое исключение для API"""
+    
+    def __init__(self, message, status_code=400, payload=None):
+        super().__init__()
+        self.message = message
+        self.status_code = status_code
+        self.payload = payload
+    
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['error'] = self.message
+        return rv
+
+
+class ValidationError(APIException):
+    """Ошибка валидации данных"""
+    
+    def __init__(self, message, payload=None):
+        super().__init__(message, 400, payload)
+
+
+class AuthenticationError(APIException):
+    """Ошибка аутентификации"""
+    
+    def __init__(self, message="Authentication required"):
+        super().__init__(message, 401)
+
+
+class AuthorizationError(APIException):
+    """Ошибка авторизации"""
+    
+    def __init__(self, message="Access denied"):
+        super().__init__(message, 403)
+
+
+class NotFoundError(APIException):
+    """Ошибка "не найдено" """
+    
+    def __init__(self, message="Resource not found"):
+        super().__init__(message, 404)
+
+
+class ConflictError(APIException):
+    """Ошибка конфликта (например, дублирование данных)"""
+    
+    def __init__(self, message="Resource already exists"):
+        super().__init__(message, 409)
+
+
+class RateLimitError(APIException):
+    """Ошибка превышения лимита запросов"""
+    
+    def __init__(self, message="Rate limit exceeded"):
+        super().__init__(message, 429)
+
+
+class InternalServerError(APIException):
+    """Внутренняя ошибка сервера"""
+    
+    def __init__(self, message="Internal server error"):
+        super().__init__(message, 500)
 
 class BaseAppException(Exception):
     """Базовое исключение приложения"""

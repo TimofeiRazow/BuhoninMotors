@@ -342,34 +342,34 @@ def require_fields(*required_fields):
 # Комбинированные декораторы для частых случаев
 def api_route(schema=None, auth=True, admin=False, pro=False, verified=False, rate_limit=None):
     """Комбинированный декоратор для API роутов"""
-    def decorator(f):
-        # Применяем декораторы в обратном порядке
-        decorated = f
+    def decorator(func):
+        # Apply decorators in correct order (from innermost to outermost)
+        decorated_func = func
         
-        # Обработка ошибок (всегда последний)
-        decorated = handle_errors(decorated)
-        
-        # Логирование
-        decorated = log_api_call(decorated)
-        
-        # Ограничение запросов
-        if rate_limit:
-            decorated = rate_limit_by_user(**rate_limit)(decorated)
-        
-        # Проверка прав доступа
-        if admin:
-            decorated = admin_required(decorated)
-        elif pro:
-            decorated = pro_user_required(decorated)
-        elif verified:
-            decorated = verified_user_required(decorated)
-        elif auth:
-            decorated = auth_required(decorated)
-        
-        # Валидация схемы
+        # Schema validation (innermost)
         if schema:
-            decorated = validate_json(schema)(decorated)
+            decorated_func = validate_json(schema)(decorated_func)
         
-        return decorated
+        # Access control
+        if admin:
+            decorated_func = admin_required(decorated_func)
+        elif pro:
+            decorated_func = pro_user_required(decorated_func)
+        elif verified:
+            decorated_func = verified_user_required(decorated_func)
+        elif auth:
+            decorated_func = auth_required(decorated_func)
+        
+        # Rate limiting
+        if rate_limit:
+            decorated_func = rate_limit_by_user(**rate_limit)(decorated_func)
+        
+        # Logging
+        decorated_func = log_api_call(decorated_func)
+        
+        # Error handling (outermost)
+        decorated_func = handle_errors(decorated_func)
+        
+        return decorated_func
     
     return decorator

@@ -27,10 +27,10 @@ def create_app(config_class=Config):
     from app.blueprints.locations import bp as locations_bp
     from app.blueprints.conversations import bp as conversations_bp
     from app.blueprints.media import bp as media_bp
-    from app.blueprints.notifications import bp as notifications_bp
-    from app.blueprints.payments import bp as payments_bp
+    from app.blueprints.notifications import notifications_bp
+    from app.blueprints.payments import payments_bp
     from app.blueprints.admin import bp as admin_bp
-    from app.blueprints.support import bp as support_bp
+    from app.blueprints.support import support_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(users_bp, url_prefix='/api/users')

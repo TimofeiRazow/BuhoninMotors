@@ -7,19 +7,19 @@ from flask import request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
-from app.blueprints.users import users_bp
+from app.blueprints.users import bp
 from app.blueprints.users.services import UserService
 from app.blueprints.users.schemas import (
     UserProfileSchema, UserProfileUpdateSchema, UserSettingsSchema,
     ChangePasswordSchema, UserStatsSchema, UserListSchema
 )
 from app.utils.decorators import admin_required, validate_json
-from app.utils.pagination import paginate
+from app.utils.pagination import paginate_query
 from app.utils.exceptions import APIException
 from app.database import get_db
 
 
-@users_bp.route('/profile', methods=['GET'])
+@bp.route('/profile', methods=['GET'])
 @jwt_required()
 def get_profile():
     """Получение профиля текущего пользователя"""
@@ -42,17 +42,18 @@ def get_profile():
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/profile', methods=['PUT'])
+@bp.route('/profile', methods=['PUT'])
 @jwt_required()
-@validate_json
+@validate_json(UserProfileUpdateSchema)  # Fixed: Added schema parameter
 def update_profile():
     """Обновление профиля пользователя"""
     try:
         user_id = get_jwt_identity()
         db = get_db()
         
-        schema = UserProfileUpdateSchema()
-        data = schema.load(request.json)
+        # Get validated data from g.validated_data (set by the decorator)
+        from flask import g
+        data = g.validated_data
         
         updated_user = UserService.update_user_profile(db, user_id, data)
         if not updated_user:
@@ -65,8 +66,6 @@ def update_profile():
             'data': response_schema.dump(updated_user)
         })
         
-    except ValidationError as e:
-        return jsonify({'error': 'Validation error', 'details': e.messages}), 400
     except APIException as e:
         return jsonify({'error': str(e)}), e.status_code
     except Exception as e:
@@ -74,7 +73,7 @@ def update_profile():
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/settings', methods=['GET'])
+@bp.route('/settings', methods=['GET'])
 @jwt_required()
 def get_settings():
     """Получение настроек пользователя"""
@@ -95,44 +94,45 @@ def get_settings():
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/settings', methods=['PUT'])
+@bp.route('/settings', methods=['PUT'])
 @jwt_required()
-@validate_json
+@validate_json(UserSettingsSchema)  # Fixed: Added schema parameter
 def update_settings():
     """Обновление настроек пользователя"""
     try:
         user_id = get_jwt_identity()
         db = get_db()
         
-        schema = UserSettingsSchema()
-        data = schema.load(request.json)
+        # Get validated data from g.validated_data (set by the decorator)
+        from flask import g
+        data = g.validated_data
         
         updated_settings = UserService.update_user_settings(db, user_id, data)
         
+        schema = UserSettingsSchema()
         return jsonify({
             'success': True,
             'message': 'Settings updated successfully',
             'data': schema.dump(updated_settings)
         })
         
-    except ValidationError as e:
-        return jsonify({'error': 'Validation error', 'details': e.messages}), 400
     except Exception as e:
         current_app.logger.error(f"Error updating user settings: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/change-password', methods=['POST'])
+@bp.route('/change-password', methods=['POST'])
 @jwt_required()
-@validate_json
+@validate_json(ChangePasswordSchema)  # Fixed: Added schema parameter
 def change_password():
     """Смена пароля пользователя"""
     try:
         user_id = get_jwt_identity()
         db = get_db()
         
-        schema = ChangePasswordSchema()
-        data = schema.load(request.json)
+        # Get validated data from g.validated_data (set by the decorator)
+        from flask import g
+        data = g.validated_data
         
         success = UserService.change_password(
             db, user_id, data['current_password'], data['new_password']
@@ -146,14 +146,12 @@ def change_password():
             'message': 'Password changed successfully'
         })
         
-    except ValidationError as e:
-        return jsonify({'error': 'Validation error', 'details': e.messages}), 400
     except Exception as e:
         current_app.logger.error(f"Error changing password: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/stats', methods=['GET'])
+@bp.route('/stats', methods=['GET'])
 @jwt_required()
 def get_user_stats():
     """Получение статистики пользователя"""
@@ -174,7 +172,7 @@ def get_user_stats():
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/<int:user_id>/reviews', methods=['GET'])
+@bp.route('/<int:user_id>/reviews', methods=['GET'])
 def get_user_reviews(user_id):
     """Получение отзывов о пользователе"""
     try:
@@ -194,7 +192,7 @@ def get_user_reviews(user_id):
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/<int:user_id>/public-profile', methods=['GET'])
+@bp.route('/<int:user_id>/public-profile', methods=['GET'])
 def get_public_profile(user_id):
     """Получение публичного профиля пользователя"""
     try:
@@ -214,7 +212,7 @@ def get_public_profile(user_id):
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/search', methods=['GET'])
+@bp.route('/search', methods=['GET'])
 @jwt_required()
 def search_users():
     """Поиск пользователей (только для админов)"""
@@ -242,7 +240,7 @@ def search_users():
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/<int:user_id>/block', methods=['POST'])
+@bp.route('/<int:user_id>/block', methods=['POST'])
 @jwt_required()
 def block_user(user_id):
     """Блокировка пользователя (только для админов)"""
@@ -270,7 +268,7 @@ def block_user(user_id):
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/<int:user_id>/unblock', methods=['POST'])
+@bp.route('/<int:user_id>/unblock', methods=['POST'])
 @jwt_required()
 def unblock_user(user_id):
     """Разблокировка пользователя (только для админов)"""
@@ -296,7 +294,7 @@ def unblock_user(user_id):
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/devices', methods=['GET'])
+@bp.route('/devices', methods=['GET'])
 @jwt_required()
 def get_user_devices():
     """Получение устройств пользователя"""
@@ -316,7 +314,7 @@ def get_user_devices():
         return jsonify({'error': 'Internal server error'}), 500
 
 
-@users_bp.route('/devices/<device_id>', methods=['DELETE'])
+@bp.route('/devices/<device_id>', methods=['DELETE'])
 @jwt_required()
 def remove_device(device_id):
     """Удаление устройства пользователя"""
@@ -336,4 +334,3 @@ def remove_device(device_id):
     except Exception as e:
         current_app.logger.error(f"Error removing device: {e}")
         return jsonify({'error': 'Internal server error'}), 500
-

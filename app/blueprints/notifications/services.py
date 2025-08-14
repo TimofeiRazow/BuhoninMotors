@@ -13,7 +13,7 @@ from app.models.notification import (
 )
 from app.models.user import User, DeviceRegistration
 from app.blueprints.notifications.push import PushNotificationService
-from app.utils.pagination import paginate
+from app.utils.pagination import paginate_query
 from app.tasks.notifications import send_notification_task
 
 
@@ -35,7 +35,7 @@ class NotificationService:
         
         query = query.order_by(Notification.scheduled_date.desc())
         
-        return paginate(query, page, per_page)
+        return paginate_query(query, page, per_page)
     
     @staticmethod
     def get_notification(db, notification_id, user_id):

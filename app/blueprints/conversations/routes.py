@@ -122,7 +122,7 @@ def send_message(conversation_id):
         message_text=data['message_text'],
         message_type=data.get('message_type', 'text'),
         parent_message_id=data.get('parent_message_id'),
-        metadata=data.get('metadata')
+        meta_data=data.get('meta_data')
     )
     
     schema = MessageSchema()

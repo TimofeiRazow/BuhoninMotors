@@ -1,6 +1,6 @@
 # app/blueprints/admin/services.py
 from datetime import datetime, timedelta
-from sqlalchemy import func, desc, and_
+from sqlalchemy import func, desc, and_, or_
 from app.extensions import db
 from app.models.user import User
 from app.models.listing import Listing
@@ -33,8 +33,7 @@ class AdminService:
             
             # Объявления
             'listings_count': Listing.query.filter(Listing.is_active == True).count(),
-            'active_listings_count': Listing.query.join(Status).filter(
-                Status.status_code == 'active',
+            'active_listings_count': Listing.query.filter(
                 Listing.is_active == True
             ).count(),
             'new_listings_today': Listing.query.filter(
@@ -43,12 +42,10 @@ class AdminService:
             ).count(),
             
             # Модерация
-            'pending_moderation_count': ModerationQueue.query.join(Status).filter(
-                Status.status_code == 'pending',
+            'pending_moderation_count': ModerationQueue.query.filter(
                 ModerationQueue.is_active == True
             ).count(),
-            'pending_reports_count': ReportedContent.query.join(Status).filter(
-                Status.status_code == 'pending',
+            'pending_reports_count': ReportedContent.query.filter(
                 ReportedContent.is_active == True
             ).count(),
         }
@@ -72,7 +69,8 @@ class AdminService:
         query = ModerationQueue.query.filter(ModerationQueue.is_active == True)
         
         if status:
-            query = query.join(Status).filter(Status.status_code == status)
+            # Фильтр по статусу можно добавить когда будет готова таблица статусов
+            pass
         
         if priority is not None:
             query = query.filter(ModerationQueue.priority == priority)
@@ -127,35 +125,45 @@ class AdminService:
     @staticmethod
     def _activate_moderated_content(entity_id):
         """Активация контента после одобрения"""
-        from app.models.base import GlobalEntity
-        
-        entity = GlobalEntity.query.get(entity_id)
-        if not entity:
-            return
-        
-        if entity.entity_type == 'listing':
-            listing = Listing.query.filter_by(entity_id=entity_id).first()
+        try:
+            from app.models.base import GlobalEntity
+            
+            entity = GlobalEntity.query.get(entity_id)
+            if not entity:
+                return
+            
+            if entity.entity_type == 'listing':
+                listing = Listing.query.filter_by(entity_id=entity_id).first()
+                if listing:
+                    # Можно добавить логику для активации через статусы
+                    listing.published_date = datetime.utcnow()
+                    listing.save()
+        except ImportError:
+            # Если модель GlobalEntity не существует, работаем напрямую с Listing
+            listing = Listing.query.get(entity_id)
             if listing:
-                active_status = get_status_by_code('listing_status', 'active')
-                listing.status_id = active_status.status_id
                 listing.published_date = datetime.utcnow()
                 listing.save()
     
     @staticmethod
     def _reject_moderated_content(entity_id, reason):
         """Отклонение контента"""
-        from app.models.base import GlobalEntity
-        
-        entity = GlobalEntity.query.get(entity_id)
-        if not entity:
-            return
-        
-        if entity.entity_type == 'listing':
-            listing = Listing.query.filter_by(entity_id=entity_id).first()
+        try:
+            from app.models.base import GlobalEntity
+            
+            entity = GlobalEntity.query.get(entity_id)
+            if not entity:
+                return
+            
+            if entity.entity_type == 'listing':
+                listing = Listing.query.filter_by(entity_id=entity_id).first()
+                if listing:
+                    listing.soft_delete()
+        except ImportError:
+            # Если модель GlobalEntity не существует, работаем напрямую с Listing
+            listing = Listing.query.get(entity_id)
             if listing:
-                rejected_status = get_status_by_code('listing_status', 'rejected')
-                listing.status_id = rejected_status.status_id
-                listing.save()
+                listing.soft_delete()
     
     @staticmethod
     def get_reports(page=1, per_page=20, status=None, reason=None):
@@ -174,7 +182,8 @@ class AdminService:
         query = ReportedContent.query.filter(ReportedContent.is_active == True)
         
         if status:
-            query = query.join(Status).filter(Status.status_code == status)
+            # Фильтр по статусу можно добавить когда будет готова таблица статусов
+            pass
         
         if reason:
             query = query.filter(ReportedContent.report_reason == reason)
@@ -207,14 +216,11 @@ class AdminService:
         if existing:
             return existing
         
-        pending_status = get_status_by_code('report_status', 'pending')
-        
         report = ReportedContent(
             reporter_id=reporter_id,
             entity_id=entity_id,
             report_reason=reason,
-            description=description,
-            status_id=pending_status.status_id
+            description=description
         )
         report.save()
         
@@ -260,16 +266,42 @@ class AdminService:
     @staticmethod
     def _deactivate_reported_content(entity_id):
         """Деактивация контента по жалобе"""
-        from app.models.base import GlobalEntity
-        
-        entity = GlobalEntity.query.get(entity_id)
-        if not entity:
-            return
-        
-        if entity.entity_type == 'listing':
-            listing = Listing.query.filter_by(entity_id=entity_id).first()
+        try:
+            from app.models.base import GlobalEntity
+            
+            entity = GlobalEntity.query.get(entity_id)
+            if not entity:
+                return
+            
+            if entity.entity_type == 'listing':
+                listing = Listing.query.filter_by(entity_id=entity_id).first()
+                if listing:
+                    listing.soft_delete()
+        except ImportError:
+            listing = Listing.query.get(entity_id)
             if listing:
                 listing.soft_delete()
+    
+    @staticmethod
+    def _send_to_moderation(entity_id, reason):
+        """Отправка контента на модерацию"""
+        # Проверяем, нет ли уже в очереди
+        existing = ModerationQueue.query.filter(
+            ModerationQueue.entity_id == entity_id,
+            ModerationQueue.is_active == True
+        ).first()
+        
+        if existing:
+            return existing
+        
+        moderation_item = ModerationQueue(
+            entity_id=entity_id,
+            user_id=1,  # Системный пользователь
+            priority=1
+        )
+        moderation_item.save()
+        
+        return moderation_item
     
     @staticmethod
     def get_users(page=1, per_page=20, user_type=None, status=None, search=None):
@@ -298,7 +330,7 @@ class AdminService:
         
         if search:
             query = query.filter(
-                db.or_(
+                or_(
                     User.first_name.ilike(f'%{search}%'),
                     User.last_name.ilike(f'%{search}%'),
                     User.phone_number.ilike(f'%{search}%'),

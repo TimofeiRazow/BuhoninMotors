@@ -38,7 +38,7 @@ def get_promotion_services():
 
 @payments_bp.route('/promote-listing', methods=['POST'])
 @jwt_required()
-@validate_json
+@validate_json(PromoteListingSchema)
 def promote_listing():
     """Продвижение объявления"""
     try:
@@ -142,7 +142,7 @@ def get_payment_history():
 
 @payments_bp.route('/create-payment', methods=['POST'])
 @jwt_required()
-@validate_json
+@validate_json(CreatePaymentSchema)
 def create_payment():
     """Создание платежа"""
     try:
@@ -170,7 +170,6 @@ def create_payment():
 
 @payments_bp.route('/process-payment/<int:transaction_id>', methods=['POST'])
 @jwt_required()
-@validate_json
 def process_payment(transaction_id):
     """Обработка платежа через платежную систему"""
     try:

@@ -60,7 +60,7 @@ def create_tables():
         
         # Создаем таблицы
         from app.database import Base, engine
-        Base.metadata.create_all(bind=engine)
+        Base.meta_data.create_all(bind=engine)
         
         logger.info("Database tables created successfully!")
         return True

@@ -22,6 +22,10 @@ class User(EntityBasedModel):
     last_login = Column(DateTime)
     verification_status = Column(String(20), default='pending')
     user_type = Column(String(20), default='regular')
+
+    support_tickets = db.relationship("SupportTicket", foreign_keys="SupportTicket.user_id", back_populates="user")
+    assigned_tickets = db.relationship("SupportTicket", foreign_keys="SupportTicket.assigned_to", back_populates="assigned_user")
+
     
     __table_args__ = (
         db.CheckConstraint(

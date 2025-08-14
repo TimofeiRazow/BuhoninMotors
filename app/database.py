@@ -8,13 +8,16 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.pool import StaticPool
 from flask import current_app, g
+from flask_sqlalchemy import SQLAlchemy
 import logging
+
+db = SQLAlchemy()
 
 # Настройка логирования для SQLAlchemy
 logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 # Метаданные для автоматического именования ограничений
-metadata = MetaData(naming_convention={
+meta_data = MetaData(naming_convention={
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
     "ck": "ck_%(table_name)s_%(constraint_name)s",
@@ -23,7 +26,7 @@ metadata = MetaData(naming_convention={
 })
 
 # Базовая модель
-Base = declarative_base(metadata=metadata)
+Base = declarative_base(metadata=meta_data)
 
 # Глобальные переменные для сессий
 engine = None
@@ -136,7 +139,7 @@ def init_db():
     
     try:
         # Создание всех таблиц
-        Base.metadata.create_all(bind=engine)
+        Base.meta_data.create_all(bind=engine)
         current_app.logger.info("Database tables created successfully")
         
         # Заполнение базовыми данными
@@ -151,7 +154,7 @@ def init_db():
 def reset_db():
     """Сброс базы данных"""
     try:
-        Base.metadata.drop_all(bind=engine)
+        Base.meta_data.drop_all(bind=engine)
         current_app.logger.info("Database tables dropped successfully")
         return init_db()
     except Exception as e:

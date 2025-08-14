@@ -9,13 +9,24 @@ from sqlalchemy import or_, and_, func
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.models.user import User, UserProfile, UserSettings, DeviceRegistration
-from app.models.review import UserReview
-from app.models.listing import Listing
-from app.utils.pagination import paginate
+# Временно закомментируем импорт UserReview до создания модели
+# from app.models.review import UserReview
+from app.utils.pagination import paginate_query
 
 
 class UserService:
     """Сервис для работы с пользователями"""
+    
+    @staticmethod
+    def get_user_profile(db, user_id):
+        """Получение полного профиля пользователя"""
+        return db.query(User).options(
+            joinedload(User.profile),
+            joinedload(User.settings)
+        ).filter(
+            User.user_id == user_id,
+            User.is_active == True
+        ).first()
     
     @staticmethod
     def update_user_profile(db, user_id, data):
@@ -28,17 +39,27 @@ class UserService:
         if not user:
             return None
         
+        # Проверяем уникальность email
+        if 'email' in data and data['email']:
+            existing_user = db.query(User).filter(
+                User.email == data['email'],
+                User.user_id != user_id,
+                User.is_active == True
+            ).first()
+            if existing_user:
+                from app.utils.exceptions import APIException
+                raise APIException('Email already exists', 400)
+        
         # Обновляем основные данные пользователя
-        if 'first_name' in data:
-            user.first_name = data['first_name']
-        if 'last_name' in data:
-            user.last_name = data['last_name']
-        if 'email' in data:
-            user.email = data['email']
+        user_fields = ['first_name', 'last_name', 'email']
+        for field in user_fields:
+            if field in data:
+                setattr(user, field, data[field])
         
         # Обновляем или создаем профиль
         if not user.profile:
             user.profile = UserProfile(user_id=user_id)
+            db.add(user.profile)
         
         profile_fields = [
             'company_name', 'address', 'city_id', 'avatar_url',
@@ -101,47 +122,38 @@ class UserService:
     @staticmethod
     def get_user_statistics(db, user_id):
         """Получение статистики пользователя"""
-        # Статистика объявлений
-        listings_stats = db.query(
-            func.count(Listing.listing_id).label('total_listings'),
-            func.sum(func.case([(Listing.status_id == 3, 1)], else_=0)).label('active_listings'),
-            func.sum(func.case([(Listing.status_id == 4, 1)], else_=0)).label('sold_listings'),
-            func.sum(Listing.view_count).label('total_views')
-        ).filter(Listing.user_id == user_id).first()
+        # Пока что возвращаем базовую статистику без отзывов и объявлений
+        # Это можно будет дополнить когда создадим соответствующие модели
         
-        # Статистика отзывов
-        reviews_stats = db.query(
-            func.count(UserReview.review_id).label('reviews_count'),
-            func.avg(UserReview.rating).label('avg_rating')
-        ).filter(
-            UserReview.reviewed_user_id == user_id,
-            UserReview.is_public == True
-        ).first()
+        # Получаем дату регистрации
+        user = db.query(User).filter_by(user_id=user_id).first()
         
         return {
             'listings': {
-                'total': listings_stats.total_listings or 0,
-                'active': listings_stats.active_listings or 0,
-                'sold': listings_stats.sold_listings or 0,
-                'total_views': listings_stats.total_views or 0
+                'total': 0,
+                'active': 0,
+                'sold': 0,
+                'total_views': 0
             },
             'reviews': {
-                'count': reviews_stats.reviews_count or 0,
-                'average_rating': float(reviews_stats.avg_rating or 0)
-            }
+                'count': 0,
+                'average_rating': 0.0
+            },
+            'join_date': user.registration_date if user else None,
+            'last_activity': user.last_login if user else None
         }
     
     @staticmethod
     def get_user_reviews(db, user_id, page=1, per_page=10):
         """Получение отзывов о пользователе"""
-        query = db.query(UserReview).options(
-            joinedload(UserReview.reviewer)
-        ).filter(
-            UserReview.reviewed_user_id == user_id,
-            UserReview.is_public == True
-        ).order_by(UserReview.created_date.desc())
-        
-        return paginate(query, page, per_page)
+        # Временная заглушка - возвращаем пустой результат
+        return {
+            'items': [],
+            'total': 0,
+            'page': page,
+            'per_page': per_page,
+            'pages': 0
+        }
     
     @staticmethod
     def get_public_profile(db, user_id):
@@ -164,13 +176,15 @@ class UserService:
             'first_name': user.first_name,
             'last_name': user.last_name,
             'user_type': user.user_type,
-            'registration_date': user.registration_date.isoformat(),
+            'registration_date': user.registration_date,
             'profile': {
                 'company_name': user.profile.company_name if user.profile else None,
                 'avatar_url': user.profile.avatar_url if user.profile else None,
                 'description': user.profile.description if user.profile else None,
+                'website': user.profile.website if user.profile else None,
                 'rating_average': user.profile.rating_average if user.profile else 0,
-                'reviews_count': user.profile.reviews_count if user.profile else 0
+                'reviews_count': user.profile.reviews_count if user.profile else 0,
+                'city_name': None  # Добавим когда создадим модель City
             },
             'statistics': stats
         }
@@ -196,7 +210,7 @@ class UserService:
             )
         ).order_by(User.registration_date.desc())
         
-        return paginate(search_query, page, per_page)
+        return paginate_query(search_query, page, per_page)
     
     @staticmethod
     def block_user(db, user_id, admin_id, reason=''):
@@ -206,9 +220,12 @@ class UserService:
         if not user or user.user_type == 'admin':
             return False
         
-        # Здесь можно добавить логику записи в лог блокировки
+        # Записываем в лог блокировки (можно добавить отдельную таблицу)
         user.is_active = False
         user.updated_date = datetime.utcnow()
+        
+        # Здесь можно будет добавить деактивацию объявлений когда создадим модель Listing
+        
         db.commit()
         return True
     
@@ -237,8 +254,11 @@ class UserService:
             'device_id': device.device_id,
             'device_type': device.device_type,
             'device_model': device.device_model,
-            'registration_date': device.registration_date.isoformat(),
-            'last_active_date': device.last_active_date.isoformat()
+            'os_version': device.os_version,
+            'app_version': device.app_version,
+            'registration_date': device.registration_date,
+            'last_active_date': device.last_active_date,
+            'is_active': device.is_active
         } for device in devices]
     
     @staticmethod
@@ -256,3 +276,48 @@ class UserService:
         device.is_active = False
         db.commit()
         return True
+    
+    @staticmethod
+    def update_user_activity(db, user_id):
+        """Обновление времени последней активности пользователя"""
+        db.query(User).filter_by(user_id=user_id).update({
+            'last_login': datetime.utcnow()
+        })
+        db.commit()
+    
+    @staticmethod
+    def get_user_by_phone_or_email(db, phone_or_email):
+        """Получение пользователя по телефону или email"""
+        return db.query(User).filter(
+            or_(
+                User.phone_number == phone_or_email,
+                User.email == phone_or_email
+            ),
+            User.is_active == True
+        ).first()
+    
+    @staticmethod
+    def verify_user_email(db, user_id):
+        """Верификация email пользователя"""
+        user = db.query(User).filter_by(user_id=user_id).first()
+        if user:
+            if user.verification_status == 'phone_verified':
+                user.verification_status = 'fully_verified'
+            else:
+                user.verification_status = 'email_verified'
+            db.commit()
+            return True
+        return False
+    
+    @staticmethod
+    def verify_user_phone(db, user_id):
+        """Верификация телефона пользователя"""
+        user = db.query(User).filter_by(user_id=user_id).first()
+        if user:
+            if user.verification_status == 'email_verified':
+                user.verification_status = 'fully_verified'
+            else:
+                user.verification_status = 'phone_verified'
+            db.commit()
+            return True
+        return False
