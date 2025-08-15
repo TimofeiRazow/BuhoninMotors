@@ -32,12 +32,12 @@ class LoginSchema(Schema):
     password = fields.Str(required=True, validate=validate.Length(min=1, max=100))
     phone_number = fields.Str(required=False)
     remember_me = fields.Bool(required=False, default=False)
-
-    
-    @validates_schema
-    def validate_identifier_or_phone(self, data, **kwargs):
-        if not data.get('identifier') and not data.get('phone_number'):
-            raise ValidationError('Either identifier or phone_number is required.')
+    @validates('phone_number')
+    def validate_phone_number(self, value):
+        try:
+            normalize_phone_number(value)
+        except ValueError as e:
+            raise ValidationError(str(e))
 
 class VerifyPhoneSchema(Schema):
     """Схема для верификации телефона"""

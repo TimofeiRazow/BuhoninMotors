@@ -26,12 +26,13 @@ def register():
         first_name=data.get('first_name'),
         last_name=data.get('last_name')
     )
-    
-    return jsonify(build_response(
-        data=user.to_dict(),
-        message="User registered successfully. Please verify your phone number.",
-        status_code=201
-    ))
+    answer = {
+        'data' : user.to_dict(),
+        'message': "User registered successfully. Please verify your phone number.",
+        'status_code' : 201
+    }
+    print(answer)
+    return jsonify(answer), 201
 
 
 @bp.route('/login', methods=['POST'])
@@ -51,11 +52,12 @@ def login():
         'user': user.to_dict(),
         'tokens': tokens
     }
+    print(response_data)
     
-    return jsonify(build_response(
-        data=response_data,
-        message="Login successful"
-    ))
+    return jsonify({
+        'data' : response_data,
+        'message':"Login successful"
+    })
 
 
 @bp.route('/logout', methods=['POST'])
