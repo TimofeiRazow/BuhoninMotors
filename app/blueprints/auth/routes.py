@@ -14,7 +14,7 @@ from app.utils.helpers import build_response, build_error_response
 @bp.route('/register', methods=['POST'])
 @handle_errors
 @validate_json(RegisterSchema)
-#@rate_limit_by_ip('register', max_requests=5, window_minutes=60)
+## @rate_limit_by_ip('register', max_requests=5, window_minutes=60)
 def register():
     """Регистрация нового пользователя"""
     data = g.validated_data
@@ -38,7 +38,7 @@ def register():
 @bp.route('/login', methods=['POST'])
 @handle_errors
 @validate_json(LoginSchema)
-@rate_limit_by_ip('login', max_requests=10, window_minutes=15)
+# @rate_limit_by_ip('login', max_requests=10, window_minutes=15)
 def login():
     """Вход пользователя"""
     data = g.validated_data
@@ -89,7 +89,7 @@ def refresh():
 @bp.route('/send-verification-code', methods=['POST'])
 @handle_errors
 @validate_json(SendVerificationCodeSchema)
-@rate_limit_by_user('send_verification', max_requests=3, window_minutes=60)
+# @rate_limit_by_user('send_verification', max_requests=3, window_minutes=60)
 def send_verification_code():
     """Отправка кода верификации"""
     data = g.validated_data
@@ -138,7 +138,7 @@ def verify_email():
 @bp.route('/reset-password', methods=['POST'])
 @handle_errors
 @validate_json(ResetPasswordSchema)
-@rate_limit_by_user('reset_password', max_requests=3, window_minutes=60)
+# @rate_limit_by_user('reset_password', max_requests=3, window_minutes=60)
 def reset_password():
     """Запрос на сброс пароля"""
     data = g.validated_data

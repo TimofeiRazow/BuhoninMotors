@@ -275,8 +275,8 @@ class AuthService:
             }
             
             access_token = create_access_token(
-                identity=user_id,
-                additional_claims=additional_claims
+                identity=str(user_id),
+                additional_claims=str(additional_claims)
             )
             
             return access_token

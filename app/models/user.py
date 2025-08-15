@@ -58,8 +58,8 @@ class User(EntityBasedModel):
         }
         
         access_token = create_access_token(
-            identity=self.user_id,
-            additional_claims=additional_claims
+            identity=str(self.user_id),
+            additional_claims=str(additional_claims)
         )
         refresh_token = create_refresh_token(identity=self.user_id)
         

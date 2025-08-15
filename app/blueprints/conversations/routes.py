@@ -42,7 +42,7 @@ def get_conversations():
 @handle_errors
 @validate_json(CreateConversationSchema)
 @auth_required
-@rate_limit_by_user('create_conversation', max_requests=20, window_minutes=60)
+# @rate_limit_by_user('create_conversation', max_requests=20, window_minutes=60)
 def create_conversation():
     """Создание нового диалога"""
     data = g.validated_data
@@ -111,7 +111,7 @@ def get_conversation_messages(conversation_id):
 @handle_errors
 @validate_json(SendMessageSchema)
 @auth_required
-@rate_limit_by_user('send_message', max_requests=100, window_minutes=60)
+# @rate_limit_by_user('send_message', max_requests=100, window_minutes=60)
 def send_message(conversation_id):
     """Отправка сообщения"""
     data = g.validated_data

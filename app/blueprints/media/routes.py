@@ -16,7 +16,7 @@ from app.utils.exceptions import ValidationError
 @bp.route('/upload', methods=['POST'])
 @handle_errors
 @auth_required
-@rate_limit_by_user('media_upload', max_requests=50, window_minutes=60)
+# @rate_limit_by_user('media_upload', max_requests=50, window_minutes=60)
 def upload_file():
     """Загрузка медиа файла"""
     try:
@@ -199,7 +199,7 @@ def get_upload_limits():
 @bp.route('/multiple-upload', methods=['POST'])
 @handle_errors
 @auth_required
-@rate_limit_by_user('bulk_upload', max_requests=10, window_minutes=60)
+# @rate_limit_by_user('bulk_upload', max_requests=10, window_minutes=60)
 def upload_multiple_files():
     """Загрузка нескольких файлов"""
     try:
