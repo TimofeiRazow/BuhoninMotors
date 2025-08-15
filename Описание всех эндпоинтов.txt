@@ -1,0 +1,233 @@
+# API Endpoints Documentation
+
+## Admin Module (/api/admin)
+
+### Dashboard
+- **GET /api/admin/dashboard** - Получение данных для админской панели
+- **GET /api/admin/stats** - Получение расширенной административной статистики
+
+### Moderation
+- **GET /api/admin/moderation** - Получение очереди модерации с фильтрацией по статусу и приоритету
+- **POST /api/admin/moderation/{moderation_id}** - Модерация контента (одобрение/отклонение)
+
+### Reports
+- **GET /api/admin/reports** - Получение жалоб с фильтрацией по статусу и причине
+- **POST /api/admin/reports** - Создание жалобы на контент
+- **POST /api/admin/reports/{report_id}/resolve** - Разрешение жалобы
+
+### User Management
+- **GET /api/admin/users** - Получение пользователей для администрирования
+- **POST /api/admin/users/{user_id}/action** - Выполнение действия с пользователем (блокировка, предупреждение и т.д.)
+
+### System
+- **GET /api/admin/system/health** - Получение состояния системы
+
+## Authentication Module (/api/auth)
+
+### Registration & Login
+- **POST /api/auth/register** - Регистрация нового пользователя
+- **POST /api/auth/login** - Вход пользователя
+- **POST /api/auth/logout** - Выход пользователя
+- **POST /api/auth/refresh** - Обновление access токена
+
+### Verification
+- **POST /api/auth/send-verification-code** - Отправка кода верификации
+- **POST /api/auth/verify-phone** - Верификация номера телефона
+- **POST /api/auth/verify-email** - Верификация email
+
+### Password Management
+- **POST /api/auth/reset-password** - Запрос на сброс пароля
+- **POST /api/auth/change-password** - Смена пароля
+
+### User Info
+- **GET /api/auth/me** - Получение информации о текущем пользователе
+
+## Cars Module (/api/cars)
+
+### Brands
+- **GET /api/cars/brands** - Получение марок автомобилей (с опциями поиска, популярные, с моделями)
+- **GET /api/cars/brands/{brand_id}** - Получение марки по ID
+- **GET /api/cars/brands/{brand_id}/models** - Получение моделей по марке
+
+### Models & Generations
+- **GET /api/cars/models/{model_id}** - Получение модели по ID
+- **GET /api/cars/models/{model_id}/generations** - Получение поколений по модели
+
+### Car Attributes
+- **GET /api/cars/body-types** - Получение типов кузова
+- **GET /api/cars/engine-types** - Получение типов двигателей
+- **GET /api/cars/transmission-types** - Получение типов трансмиссий
+- **GET /api/cars/drive-types** - Получение типов приводов
+- **GET /api/cars/colors** - Получение цветов
+- **GET /api/cars/features** - Получение особенностей автомобилей
+- **GET /api/cars/attributes** - Получение атрибутов автомобилей
+
+### Utility
+- **GET /api/cars/hierarchy** - Получение иерархии марка -> модель -> поколение
+- **GET /api/cars/reference-data** - Получение всех справочных данных
+- **GET /api/cars/years** - Получение диапазона доступных годов
+- **GET /api/cars/search** - Поиск по маркам и моделям
+
+## Conversations Module (/api/conversations)
+
+### Conversation Management
+- **GET /api/conversations/** - Получение диалогов пользователя
+- **POST /api/conversations/** - Создание нового диалога
+- **GET /api/conversations/{conversation_id}** - Получение диалога
+- **POST /api/conversations/{conversation_id}/read** - Отметка диалога как прочитанного
+- **POST /api/conversations/{conversation_id}/leave** - Выход из диалога
+
+### Messages
+- **GET /api/conversations/{conversation_id}/messages** - Получение сообщений диалога
+- **POST /api/conversations/{conversation_id}/messages** - Отправка сообщения
+- **PUT /api/conversations/messages/{message_id}** - Редактирование сообщения
+- **DELETE /api/conversations/messages/{message_id}** - Удаление сообщения
+
+### Utility
+- **GET /api/conversations/unread-count** - Получение количества непрочитанных диалогов
+
+## Listings Module (/api/listings)
+
+### Listing Management
+- **GET /api/listings/** - Поиск объявлений с фильтрацией
+- **POST /api/listings/** - Создание нового объявления
+- **GET /api/listings/{listing_id}** - Получение объявления по ID
+- **PUT /api/listings/{listing_id}** - Обновление объявления
+- **DELETE /api/listings/{listing_id}** - Удаление объявления
+
+### User Listings
+- **GET /api/listings/my** - Получение объявлений текущего пользователя
+- **POST /api/listings/{listing_id}/action** - Выполнение действия с объявлением
+
+### Favorites
+- **POST /api/listings/{listing_id}/favorite** - Добавление/удаление из избранного
+- **GET /api/listings/favorites** - Получение избранных объявлений
+
+### Analytics
+- **POST /api/listings/{listing_id}/view** - Увеличение счетчика просмотров
+
+## Locations Module (/api/locations)
+
+### Countries
+- **GET /api/locations/countries** - Получение всех стран
+- **GET /api/locations/countries/{country_id}** - Получение страны по ID
+
+### Regions
+- **GET /api/locations/regions** - Получение регионов с фильтрацией по стране
+- **GET /api/locations/regions/{region_id}** - Получение региона по ID
+- **GET /api/locations/regions/{region_id}/cities** - Получение городов региона
+
+### Cities
+- **GET /api/locations/cities** - Получение городов с различными фильтрами
+- **GET /api/locations/cities/{city_id}** - Получение города по ID
+- **GET /api/locations/cities/search** - Поиск городов
+
+### Search & Utility
+- **GET /api/locations/search** - Универсальный поиск локаций
+- **GET /api/locations/nearby** - Поиск городов поблизости по координатам
+- **GET /api/locations/hierarchy** - Получение иерархии локаций
+- **GET /api/locations/stats** - Получение статистики локаций
+
+## Media Module (/api/media)
+
+### File Management
+- **POST /api/media/upload** - Загрузка медиа файла
+- **POST /api/media/multiple-upload** - Загрузка нескольких файлов
+- **GET /api/media/{media_id}** - Получение медиа файла по ID
+- **PUT /api/media/{media_id}** - Обновление медиа файла
+- **DELETE /api/media/{media_id}** - Удаление медиа файла
+
+### Entity Media
+- **GET /api/media/entity/{entity_id}** - Получение медиа файлов сущности
+- **POST /api/media/entity/{entity_id}/reorder** - Изменение порядка медиа файлов
+- **GET /api/media/entity/{entity_id}/stats** - Получение статистики медиа файлов
+
+### Utility
+- **GET /api/media/{media_id}/download** - Скачивание медиа файла
+- **POST /api/media/{media_id}/thumbnail** - Генерация миниатюры для изображения
+- **GET /api/media/limits** - Получение лимитов загрузки
+
+## Notifications Module (/api/notifications)
+
+### Notification Management
+- **GET /api/notifications/** - Получение списка уведомлений пользователя
+- **GET /api/notifications/{notification_id}** - Получение конкретного уведомления
+- **PUT /api/notifications/{notification_id}/read** - Отметить уведомление как прочитанное
+- **PUT /api/notifications/mark-all-read** - Отметить все уведомления как прочитанные
+- **GET /api/notifications/unread-count** - Получение количества непрочитанных уведомлений
+
+### Settings
+- **GET /api/notifications/settings** - Получение настроек уведомлений пользователя
+- **PUT /api/notifications/settings** - Обновление настроек уведомлений
+
+### Admin Functions
+- **POST /api/notifications/send** - Отправка уведомления (только для админов)
+- **POST /api/notifications/broadcast** - Массовая отправка уведомлений
+- **GET /api/notifications/templates** - Получение шаблонов уведомлений
+
+### Testing
+- **POST /api/notifications/test-push** - Тестовая отправка push-уведомления
+
+## Payments Module (/api/payments)
+
+### Promotion Services
+- **GET /api/payments/services** - Получение доступных услуг продвижения
+- **POST /api/payments/promote-listing** - Продвижение объявления
+- **GET /api/payments/my-promotions** - Получение активных продвижений пользователя
+
+### Payments
+- **POST /api/payments/create-payment** - Создание платежа
+- **POST /api/payments/process-payment/{transaction_id}** - Обработка платежа через платежную систему
+- **POST /api/payments/webhook/{provider}** - Webhook для обработки уведомлений от платежных систем
+
+### Transaction Management
+- **GET /api/payments/transactions** - Получение истории платежей пользователя
+- **POST /api/payments/refund/{transaction_id}** - Запрос возврата средств
+
+### User Balance
+- **GET /api/payments/balance** - Получение баланса пользователя
+- **GET /api/payments/statistics** - Получение статистики платежей пользователя
+
+## Support Module (/api/support)
+
+### Tickets
+- **GET /api/support/tickets** - Получение тикетов пользователя
+- **POST /api/support/tickets** - Создание нового тикета поддержки
+- **GET /api/support/tickets/{ticket_id}** - Получение конкретного тикета
+- **POST /api/support/tickets/{ticket_id}/response** - Добавление ответа к тикету
+- **PUT /api/support/tickets/{ticket_id}/close** - Закрытие тикета пользователем
+
+### Information
+- **GET /api/support/categories** - Получение категорий поддержки
+- **GET /api/support/faq** - Получение часто задаваемых вопросов
+
+### Admin Functions
+- **GET /api/support/admin/tickets** - Получение всех тикетов (для админов)
+- **PUT /api/support/admin/tickets/{ticket_id}** - Обновление тикета (для админов)
+- **PUT /api/support/admin/tickets/{ticket_id}/assign** - Назначение тикета администратору
+- **GET /api/support/admin/statistics** - Получение статистики поддержки
+
+## Users Module (/api/users)
+
+### Profile Management
+- **GET /api/users/profile** - Получение профиля текущего пользователя
+- **PUT /api/users/profile** - Обновление профиля пользователя
+- **GET /api/users/{user_id}/public-profile** - Получение публичного профиля пользователя
+
+### Settings
+- **GET /api/users/settings** - Получение настроек пользователя
+- **PUT /api/users/settings** - Обновление настроек пользователя
+- **POST /api/users/change-password** - Смена пароля пользователя
+
+### Statistics & Reviews
+- **GET /api/users/stats** - Получение статистики пользователя
+- **GET /api/users/{user_id}/reviews** - Получение отзывов о пользователе
+
+### Admin Functions
+- **GET /api/users/search** - Поиск пользователей (только для админов)
+- **POST /api/users/{user_id}/block** - Блокировка пользователя (только для админов)
+- **POST /api/users/{user_id}/unblock** - Разблокировка пользователя (только для админов)
+
+### Device Management
+- **GET /api/users/devices** - Получение устройств пользователя
+- **DELETE /api/users/devices/{device_id}** - Удаление устройства пользователя

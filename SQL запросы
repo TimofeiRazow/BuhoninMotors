@@ -1,0 +1,1656 @@
+-- ============================================================================
+-- KOLESA.KZ DATABASE SCHEMA - OPTIMIZED ARCHITECTURE
+-- Версия: 2.0 (Унифицированная архитектура)
+-- PostgreSQL 14+
+-- ============================================================================
+
+-- Включаем расширения
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "ltree";
+CREATE EXTENSION IF NOT EXISTS "cube";
+CREATE EXTENSION IF NOT EXISTS "earthdistance";
+
+-- ============================================================================
+-- 1. ОСНОВА АРХИТЕКТУРЫ - ENTITY FRAMEWORK
+-- ============================================================================
+
+-- Глобальный реестр всех сущностей системы
+CREATE TABLE Global_Entities (
+    entity_id BIGSERIAL PRIMARY KEY,
+    entity_type VARCHAR(50) NOT NULL CHECK (entity_type IN ('listing', 'user', 'message', 'conversation', 'ticket')),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT true
+);
+
+-- Типы сущностей для гибкого расширения
+CREATE TABLE Entity_Types (
+    type_id SERIAL PRIMARY KEY,
+    type_code VARCHAR(50) UNIQUE NOT NULL,
+    type_name VARCHAR(100) NOT NULL,
+    parent_type_id INTEGER REFERENCES Entity_Types(type_id),
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- 2. ПОЛЬЗОВАТЕЛИ И АУТЕНТИФИКАЦИЯ
+-- ============================================================================
+
+CREATE TABLE Users (
+    user_id SERIAL PRIMARY KEY,
+    entity_id BIGINT UNIQUE NOT NULL REFERENCES Global_Entities(entity_id),
+    phone_number VARCHAR(20) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP,
+    is_active BOOLEAN DEFAULT true,
+    verification_status VARCHAR(20) DEFAULT 'pending' CHECK (verification_status IN ('pending', 'phone_verified', 'email_verified', 'fully_verified')),
+    user_type VARCHAR(20) DEFAULT 'regular' CHECK (user_type IN ('regular', 'pro', 'dealer', 'admin')),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE User_Profiles (
+    profile_id SERIAL PRIMARY KEY,
+    user_id INTEGER UNIQUE NOT NULL REFERENCES Users(user_id),
+    company_name VARCHAR(255),
+    address TEXT,
+    city_id INTEGER,
+    avatar_url VARCHAR(500),
+    description TEXT,
+    website VARCHAR(255),
+    business_hours JSONB,
+    verification_documents JSONB,
+    rating_average DECIMAL(3,2) DEFAULT 0,
+    reviews_count INTEGER DEFAULT 0,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE User_Settings (
+    user_id INTEGER PRIMARY KEY REFERENCES Users(user_id),
+    notifications_enabled BOOLEAN DEFAULT true,
+    email_notifications BOOLEAN DEFAULT true,
+    sms_notifications BOOLEAN DEFAULT false,
+    push_notifications BOOLEAN DEFAULT true,
+    auto_renewal_enabled BOOLEAN DEFAULT false,
+    privacy_settings JSONB DEFAULT '{}',
+    preferred_language VARCHAR(10) DEFAULT 'ru',
+    timezone VARCHAR(50) DEFAULT 'Asia/Almaty',
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE Device_Registration (
+    device_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    device_token VARCHAR(500) NOT NULL,
+    device_type VARCHAR(20) NOT NULL CHECK (device_type IN ('ios', 'android', 'web')),
+    device_model VARCHAR(100),
+    os_version VARCHAR(50),
+    app_version VARCHAR(50),
+    registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_active_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT true
+);
+
+-- ============================================================================
+-- 3. ГЕОГРАФИЧЕСКИЕ ДАННЫЕ
+-- ============================================================================
+
+CREATE TABLE Countries (
+    country_id SERIAL PRIMARY KEY,
+    country_code VARCHAR(3) UNIQUE NOT NULL,
+    country_name VARCHAR(100) NOT NULL,
+    phone_code VARCHAR(10),
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE Regions (
+    region_id SERIAL PRIMARY KEY,
+    region_name VARCHAR(100) NOT NULL,
+    country_id INTEGER NOT NULL REFERENCES Countries(country_id),
+    region_code VARCHAR(10),
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE Cities (
+    city_id SERIAL PRIMARY KEY,
+    city_name VARCHAR(100) NOT NULL,
+    region_id INTEGER NOT NULL REFERENCES Regions(region_id),
+    latitude DECIMAL(10,8),
+    longitude DECIMAL(11,8),
+    population INTEGER,
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true
+);
+
+-- ============================================================================
+-- 4. УНИВЕРСАЛЬНАЯ СИСТЕМА КАТЕГОРИЙ
+-- ============================================================================
+
+CREATE TABLE Category_Trees (
+    tree_id SERIAL PRIMARY KEY,
+    tree_code VARCHAR(50) UNIQUE NOT NULL,
+    tree_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE Categories (
+    category_id SERIAL PRIMARY KEY,
+    tree_id INTEGER NOT NULL REFERENCES Category_Trees(tree_id),
+    parent_category_id INTEGER REFERENCES Categories(category_id),
+    category_name VARCHAR(100) NOT NULL,
+    category_slug VARCHAR(100),
+    level INTEGER DEFAULT 0,
+    full_path LTREE,
+    sort_order INTEGER DEFAULT 0,
+    icon_url VARCHAR(500),
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- 5. УНИВЕРСАЛЬНАЯ СИСТЕМА СТАТУСОВ
+-- ============================================================================
+
+CREATE TABLE Status_Groups (
+    group_id SERIAL PRIMARY KEY,
+    group_code VARCHAR(50) UNIQUE NOT NULL,
+    group_name VARCHAR(100) NOT NULL,
+    description TEXT
+);
+
+CREATE TABLE Statuses (
+    status_id SERIAL PRIMARY KEY,
+    group_id INTEGER NOT NULL REFERENCES Status_Groups(group_id),
+    status_code VARCHAR(50) NOT NULL,
+    status_name VARCHAR(100) NOT NULL,
+    status_color VARCHAR(7),
+    is_active BOOLEAN DEFAULT true,
+    is_final BOOLEAN DEFAULT false,
+    sort_order INTEGER DEFAULT 0,
+    UNIQUE(group_id, status_code)
+);
+
+-- ============================================================================
+-- 6. ВАЛЮТЫ И КУРСЫ
+-- ============================================================================
+
+CREATE TABLE Currencies (
+    currency_id SERIAL PRIMARY KEY,
+    currency_code VARCHAR(3) UNIQUE NOT NULL,
+    currency_name VARCHAR(50) NOT NULL,
+    symbol VARCHAR(10),
+    exchange_rate_to_kzt DECIMAL(15,6) DEFAULT 1,
+    is_base_currency BOOLEAN DEFAULT false,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT true
+);
+
+-- ============================================================================
+-- 7. АВТОМОБИЛЬНЫЕ СПРАВОЧНИКИ
+-- ============================================================================
+
+CREATE TABLE Car_Brands (
+    brand_id SERIAL PRIMARY KEY,
+    brand_name VARCHAR(100) UNIQUE NOT NULL,
+    brand_slug VARCHAR(100) UNIQUE NOT NULL,
+    logo_url VARCHAR(500),
+    country_origin VARCHAR(100),
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE Car_Models (
+    model_id SERIAL PRIMARY KEY,
+    brand_id INTEGER NOT NULL REFERENCES Car_Brands(brand_id),
+    model_name VARCHAR(100) NOT NULL,
+    model_slug VARCHAR(150) UNIQUE NOT NULL,
+    start_year INTEGER,
+    end_year INTEGER,
+    body_type_id INTEGER,
+    is_active BOOLEAN DEFAULT true,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(brand_id, model_name)
+);
+
+CREATE TABLE Car_Generations (
+    generation_id SERIAL PRIMARY KEY,
+    model_id INTEGER NOT NULL REFERENCES Car_Models(model_id),
+    generation_name VARCHAR(100) NOT NULL,
+    start_year INTEGER,
+    end_year INTEGER,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE Car_Attribute_Groups (
+    group_id SERIAL PRIMARY KEY,
+    group_name VARCHAR(100) NOT NULL,
+    group_code VARCHAR(50) UNIQUE NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE Car_Attributes (
+    attribute_id SERIAL PRIMARY KEY,
+    group_id INTEGER NOT NULL REFERENCES Car_Attribute_Groups(group_id),
+    attribute_code VARCHAR(100) UNIQUE NOT NULL,
+    attribute_name VARCHAR(100) NOT NULL,
+    attribute_type VARCHAR(20) NOT NULL CHECK (attribute_type IN ('string', 'number', 'boolean', 'reference', 'multi_select')),
+    reference_table VARCHAR(100),
+    is_required BOOLEAN DEFAULT false,
+    is_searchable BOOLEAN DEFAULT false,
+    is_filterable BOOLEAN DEFAULT false,
+    sort_order INTEGER DEFAULT 0,
+    validation_rules JSONB,
+    default_value TEXT
+);
+
+-- Предустановленные справочники для автомобилей
+CREATE TABLE Car_Body_Types (
+    body_type_id SERIAL PRIMARY KEY,
+    body_type_name VARCHAR(50) UNIQUE NOT NULL,
+    icon_url VARCHAR(500),
+    sort_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE Car_Engine_Types (
+    engine_type_id SERIAL PRIMARY KEY,
+    engine_type_name VARCHAR(50) UNIQUE NOT NULL,
+    sort_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE Car_Transmission_Types (
+    transmission_id SERIAL PRIMARY KEY,
+    transmission_name VARCHAR(50) UNIQUE NOT NULL,
+    sort_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE Car_Drive_Types (
+    drive_type_id SERIAL PRIMARY KEY,
+    drive_type_name VARCHAR(50) UNIQUE NOT NULL,
+    sort_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE Car_Colors (
+    color_id SERIAL PRIMARY KEY,
+    color_name VARCHAR(50) UNIQUE NOT NULL,
+    color_hex VARCHAR(7),
+    sort_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE Car_Features (
+    feature_id SERIAL PRIMARY KEY,
+    feature_name VARCHAR(100) UNIQUE NOT NULL,
+    category_id INTEGER REFERENCES Categories(category_id),
+    icon_url VARCHAR(500),
+    sort_order INTEGER DEFAULT 0
+);
+
+-- ============================================================================
+-- 8. УНИФИЦИРОВАННАЯ СИСТЕМА ОБЪЯВЛЕНИЙ
+-- ============================================================================
+
+CREATE TABLE Listings (
+    listing_id SERIAL PRIMARY KEY,
+    entity_id BIGINT UNIQUE NOT NULL REFERENCES Global_Entities(entity_id),
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    listing_type_id INTEGER NOT NULL REFERENCES Entity_Types(type_id),
+    category_id INTEGER REFERENCES Categories(category_id),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    price DECIMAL(15,2),
+    currency_id INTEGER REFERENCES Currencies(currency_id),
+    city_id INTEGER REFERENCES Cities(city_id),
+    address TEXT,
+    latitude DECIMAL(10,8),
+    longitude DECIMAL(11,8),
+    contact_phone VARCHAR(20),
+    contact_name VARCHAR(100),
+    status_id INTEGER NOT NULL REFERENCES Statuses(status_id),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    published_date TIMESTAMP,
+    expires_date TIMESTAMP,
+    view_count INTEGER DEFAULT 0,
+    favorite_count INTEGER DEFAULT 0,
+    is_featured BOOLEAN DEFAULT false,
+    is_urgent BOOLEAN DEFAULT false,
+    is_negotiable BOOLEAN DEFAULT true,
+    search_vector TSVECTOR -- для полнотекстового поиска
+);
+
+-- Специализированные атрибуты для разных типов объявлений
+CREATE TABLE Listing_Attributes (
+    listing_id INTEGER NOT NULL REFERENCES Listings(listing_id),
+    attribute_id INTEGER NOT NULL REFERENCES Car_Attributes(attribute_id),
+    string_value TEXT,
+    numeric_value DECIMAL(15,6),
+    boolean_value BOOLEAN,
+    reference_id INTEGER,
+    date_value TIMESTAMP,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (listing_id, attribute_id)
+);
+
+-- Альтернативный подход с JSONB для гибкости
+CREATE TABLE Listing_Details (
+    listing_id INTEGER PRIMARY KEY REFERENCES Listings(listing_id),
+    listing_type_id INTEGER NOT NULL REFERENCES Entity_Types(type_id),
+    details JSONB DEFAULT '{}',
+    searchable_fields JSONB DEFAULT '{}',
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Связь объявлений с опциями (многие ко многим)
+CREATE TABLE Listing_Features (
+    listing_id INTEGER NOT NULL REFERENCES Listings(listing_id),
+    feature_id INTEGER NOT NULL REFERENCES Car_Features(feature_id),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (listing_id, feature_id)
+);
+
+-- ============================================================================
+-- 9. УНИВЕРСАЛЬНАЯ СИСТЕМА МЕДИА
+-- ============================================================================
+
+CREATE TABLE Media_Storage (
+    media_id SERIAL PRIMARY KEY,
+    entity_id BIGINT NOT NULL REFERENCES Global_Entities(entity_id),
+    media_type VARCHAR(20) NOT NULL CHECK (media_type IN ('image', 'video', 'document')),
+    file_url VARCHAR(1000) NOT NULL,
+    thumbnail_url VARCHAR(1000),
+    file_name VARCHAR(255),
+    file_size BIGINT,
+    mime_type VARCHAR(100),
+    file_order INTEGER DEFAULT 0,
+    is_primary BOOLEAN DEFAULT false,
+    alt_text VARCHAR(255),
+    uploaded_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    storage_provider VARCHAR(50) DEFAULT 'local',
+    external_id VARCHAR(255),
+    metadata JSONB DEFAULT '{}'
+);
+
+-- ============================================================================
+-- 10. СИСТЕМА ДИАЛОГОВ И СООБЩЕНИЙ
+-- ============================================================================
+
+CREATE TABLE Conversations (
+    conversation_id SERIAL PRIMARY KEY,
+    entity_id BIGINT UNIQUE NOT NULL REFERENCES Global_Entities(entity_id),
+    conversation_type VARCHAR(20) NOT NULL CHECK (conversation_type IN ('user_chat', 'support', 'system')),
+    subject VARCHAR(255),
+    related_entity_id BIGINT REFERENCES Global_Entities(entity_id),
+    status_id INTEGER REFERENCES Statuses(status_id),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_message_date TIMESTAMP,
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE Conversation_Participants (
+    conversation_id INTEGER NOT NULL REFERENCES Conversations(conversation_id),
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    role VARCHAR(20) DEFAULT 'participant' CHECK (role IN ('participant', 'moderator', 'support', 'admin')),
+    joined_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_read_date TIMESTAMP,
+    notification_settings JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    PRIMARY KEY (conversation_id, user_id)
+);
+
+CREATE TABLE Messages (
+    message_id SERIAL PRIMARY KEY,
+    entity_id BIGINT UNIQUE NOT NULL REFERENCES Global_Entities(entity_id),
+    conversation_id INTEGER NOT NULL REFERENCES Conversations(conversation_id),
+    sender_id INTEGER NOT NULL REFERENCES Users(user_id),
+    message_text TEXT,
+    message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'system', 'media', 'action')),
+    sent_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    edited_date TIMESTAMP,
+    is_deleted BOOLEAN DEFAULT false,
+    parent_message_id INTEGER REFERENCES Messages(message_id),
+    metadata JSONB DEFAULT '{}'
+);
+
+CREATE TABLE Message_Attachments (
+    attachment_id SERIAL PRIMARY KEY,
+    message_id INTEGER NOT NULL REFERENCES Messages(message_id),
+    media_id INTEGER NOT NULL REFERENCES Media_Storage(media_id),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- 11. ПОИСК И ИЗБРАННОЕ
+-- ============================================================================
+
+CREATE TABLE Search_History (
+    search_id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES Users(user_id),
+    search_query TEXT,
+    filters_json JSONB DEFAULT '{}',
+    results_count INTEGER DEFAULT 0,
+    search_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    session_id VARCHAR(100)
+);
+
+CREATE TABLE Saved_Searches (
+    saved_search_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    search_name VARCHAR(255) NOT NULL,
+    search_criteria_json JSONB NOT NULL,
+    email_notifications BOOLEAN DEFAULT false,
+    push_notifications BOOLEAN DEFAULT true,
+    last_notified TIMESTAMP,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE Favorites (
+    favorite_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    entity_id BIGINT NOT NULL REFERENCES Global_Entities(entity_id),
+    folder_name VARCHAR(100),
+    added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, entity_id)
+);
+
+-- ============================================================================
+-- 12. ПЛАТНЫЕ УСЛУГИ И ПРОДВИЖЕНИЕ
+-- ============================================================================
+
+CREATE TABLE Promotion_Services (
+    service_id SERIAL PRIMARY KEY,
+    service_code VARCHAR(50) UNIQUE NOT NULL,
+    service_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    currency_id INTEGER NOT NULL REFERENCES Currencies(currency_id),
+    duration_days INTEGER,
+    features JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE Entity_Promotions (
+    promotion_id SERIAL PRIMARY KEY,
+    entity_id BIGINT NOT NULL REFERENCES Global_Entities(entity_id),
+    service_id INTEGER NOT NULL REFERENCES Promotion_Services(service_id),
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    end_date TIMESTAMP NOT NULL,
+    payment_id INTEGER,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'expired', 'cancelled')),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE Payment_Transactions (
+    transaction_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    transaction_type VARCHAR(20) NOT NULL CHECK (transaction_type IN ('payment', 'refund', 'bonus', 'withdrawal')),
+    amount DECIMAL(15,2) NOT NULL,
+    currency_id INTEGER NOT NULL REFERENCES Currencies(currency_id),
+    payment_method VARCHAR(50),
+    external_transaction_id VARCHAR(255),
+    status_id INTEGER NOT NULL REFERENCES Statuses(status_id),
+    description TEXT,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    processed_date TIMESTAMP,
+    related_promotion_id INTEGER REFERENCES Entity_Promotions(promotion_id),
+    metadata JSONB DEFAULT '{}'
+);
+
+-- ============================================================================
+-- 13. УНИВЕРСАЛЬНАЯ СИСТЕМА УВЕДОМЛЕНИЙ
+-- ============================================================================
+
+CREATE TABLE Notification_Channels (
+    channel_id SERIAL PRIMARY KEY,
+    channel_code VARCHAR(20) UNIQUE NOT NULL,
+    channel_name VARCHAR(50) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    settings JSONB DEFAULT '{}'
+);
+
+CREATE TABLE Notification_Templates (
+    template_id SERIAL PRIMARY KEY,
+    template_code VARCHAR(100) UNIQUE NOT NULL,
+    template_name VARCHAR(255) NOT NULL,
+    channel_id INTEGER NOT NULL REFERENCES Notification_Channels(channel_id),
+    subject_template TEXT,
+    body_template TEXT NOT NULL,
+    variables JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE Notifications (
+    notification_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    channel_id INTEGER NOT NULL REFERENCES Notification_Channels(channel_id),
+    template_id INTEGER REFERENCES Notification_Templates(template_id),
+    title VARCHAR(255),
+    message TEXT NOT NULL,
+    notification_type VARCHAR(50),
+    related_entity_id BIGINT REFERENCES Global_Entities(entity_id),
+    template_data JSONB DEFAULT '{}',
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'delivered', 'failed', 'opened')),
+    scheduled_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sent_date TIMESTAMP,
+    opened_date TIMESTAMP,
+    attempts_count INTEGER DEFAULT 0,
+    error_message TEXT,
+    external_id VARCHAR(255)
+);
+
+CREATE TABLE User_Notification_Settings (
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    channel_id INTEGER NOT NULL REFERENCES Notification_Channels(channel_id),
+    notification_type VARCHAR(50) NOT NULL,
+    is_enabled BOOLEAN DEFAULT true,
+    frequency VARCHAR(20) DEFAULT 'instant' CHECK (frequency IN ('instant', 'daily', 'weekly', 'never')),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, channel_id, notification_type)
+);
+
+-- ============================================================================
+-- 14. МОДЕРАЦИЯ И ЖАЛОБЫ
+-- ============================================================================
+
+CREATE TABLE Moderation_Queue (
+    moderation_id SERIAL PRIMARY KEY,
+    entity_id BIGINT NOT NULL REFERENCES Global_Entities(entity_id),
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    moderator_id INTEGER REFERENCES Users(user_id),
+    status_id INTEGER NOT NULL REFERENCES Statuses(status_id),
+    priority INTEGER DEFAULT 0,
+    rejection_reason TEXT,
+    submitted_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    moderated_date TIMESTAMP,
+    notes TEXT,
+    auto_moderation_score DECIMAL(5,2)
+);
+
+CREATE TABLE Reported_Content (
+    report_id SERIAL PRIMARY KEY,
+    reporter_id INTEGER NOT NULL REFERENCES Users(user_id),
+    entity_id BIGINT NOT NULL REFERENCES Global_Entities(entity_id),
+    report_reason VARCHAR(50) NOT NULL,
+    description TEXT,
+    status_id INTEGER NOT NULL REFERENCES Statuses(status_id),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resolved_date TIMESTAMP,
+    resolved_by INTEGER REFERENCES Users(user_id),
+    resolution_notes TEXT
+);
+
+-- ============================================================================
+-- 15. ОТЗЫВЫ И РЕЙТИНГИ
+-- ============================================================================
+
+CREATE TABLE User_Reviews (
+    review_id SERIAL PRIMARY KEY,
+    entity_id BIGINT UNIQUE NOT NULL REFERENCES Global_Entities(entity_id),
+    reviewer_id INTEGER NOT NULL REFERENCES Users(user_id),
+    reviewed_user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    listing_id INTEGER REFERENCES Listings(listing_id),
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    review_text TEXT,
+    transaction_type VARCHAR(20) CHECK (transaction_type IN ('sale', 'purchase', 'service')),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_verified BOOLEAN DEFAULT false,
+    is_public BOOLEAN DEFAULT true,
+    UNIQUE(reviewer_id, reviewed_user_id, listing_id)
+);
+
+CREATE TABLE Car_Owner_Reviews (
+    review_id SERIAL PRIMARY KEY,
+    entity_id BIGINT UNIQUE NOT NULL REFERENCES Global_Entities(entity_id),
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    brand_id INTEGER NOT NULL REFERENCES Car_Brands(brand_id),
+    model_id INTEGER NOT NULL REFERENCES Car_Models(model_id),
+    generation_id INTEGER REFERENCES Car_Generations(generation_id),
+    year_owned INTEGER,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    pros TEXT,
+    cons TEXT,
+    ownership_duration_months INTEGER,
+    fuel_consumption_real DECIMAL(4,1),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_verified BOOLEAN DEFAULT false
+);
+
+-- ============================================================================
+-- 16. ПОДДЕРЖКА
+-- ============================================================================
+
+CREATE TABLE Support_Tickets (
+    ticket_id SERIAL PRIMARY KEY,
+    entity_id BIGINT UNIQUE NOT NULL REFERENCES Global_Entities(entity_id),
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    category_id INTEGER REFERENCES Categories(category_id),
+    priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+    subject VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    status_id INTEGER NOT NULL REFERENCES Statuses(status_id),
+    assigned_to INTEGER REFERENCES Users(user_id),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    first_response_date TIMESTAMP,
+    resolved_date TIMESTAMP,
+    customer_satisfaction INTEGER CHECK (customer_satisfaction >= 1 AND customer_satisfaction <= 5)
+);
+
+-- ============================================================================
+-- 17. АУТЕНТИФИКАЦИЯ И БЕЗОПАСНОСТЬ
+-- ============================================================================
+
+CREATE TABLE Phone_Verification (
+    verification_id SERIAL PRIMARY KEY,
+    phone_number VARCHAR(20) NOT NULL,
+    verification_code VARCHAR(10) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    verified_at TIMESTAMP,
+    attempts_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ip_address INET
+);
+
+CREATE TABLE Email_Verification (
+    verification_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    email_address VARCHAR(255) NOT NULL,
+    verification_token VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    verified_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE User_Sessions (
+    session_id VARCHAR(255) PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES Users(user_id),
+    ip_address INET,
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE Login_Attempts (
+    attempt_id SERIAL PRIMARY KEY,
+    phone_number VARCHAR(20),
+    email VARCHAR(255),
+    ip_address INET NOT NULL,
+    success BOOLEAN NOT NULL,
+    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    user_agent TEXT,
+    failure_reason VARCHAR(100)
+);
+
+-- ============================================================================
+-- 18. УНИВЕРСАЛЬНАЯ SEO СИСТЕМА
+-- ============================================================================
+
+CREATE TABLE Entity_SEO (
+    seo_id SERIAL PRIMARY KEY,
+    entity_id BIGINT UNIQUE NOT NULL REFERENCES Global_Entities(entity_id),
+    url_slug VARCHAR(255) UNIQUE NOT NULL,
+    title VARCHAR(255),
+    meta_description VARCHAR(500),
+    h1_title VARCHAR(255),
+    canonical_url VARCHAR(500),
+    schema_markup JSONB DEFAULT '{}',
+    is_indexed BOOLEAN DEFAULT true,
+    robots_meta VARCHAR(100) DEFAULT 'index,follow',
+    og_title VARCHAR(255),
+    og_description VARCHAR(500),
+    og_image_url VARCHAR(500),
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- 19. ОСНОВНЫЕ ИНДЕКСЫ ДЛЯ ПРОИЗВОДИТЕЛЬНОСТИ
+-- ============================================================================
+
+-- Entity Framework индексы
+CREATE INDEX idx_global_entities_type_date ON Global_Entities(entity_type, created_date DESC);
+CREATE INDEX idx_global_entities_active ON Global_Entities(entity_id) WHERE is_active = true;
+
+-- Пользователи
+CREATE UNIQUE INDEX idx_users_phone_active ON Users(phone_number) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_users_email_active ON Users(email) WHERE is_active = true AND email IS NOT NULL;
+CREATE INDEX idx_users_entity_id ON Users(entity_id);
+
+-- Основные индексы для объявлений
+CREATE INDEX idx_listings_search_main ON Listings(listing_type_id, city_id, status_id, price, published_date DESC) WHERE published_date IS NOT NULL;
+CREATE INDEX idx_listings_user_status ON Listings(user_id, status_id, updated_date DESC);
+CREATE INDEX idx_listings_featured ON Listings(is_featured, published_date DESC) WHERE is_featured = true;
+CREATE INDEX idx_listings_expires ON Listings(expires_date) WHERE expires_date IS NOT NULL;
+
+-- Геолокационный поиск (используем earthdistance)
+CREATE INDEX idx_listings_location ON Listings USING GIST(ll_to_earth(latitude, longitude)) WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
+CREATE INDEX idx_cities_location ON Cities USING GIST(ll_to_earth(latitude, longitude)) WHERE latitude IS NOT NULL;
+
+-- Полнотекстовый поиск
+CREATE INDEX idx_listings_search_vector ON Listings USING GIN(search_vector);
+CREATE INDEX idx_listings_title_search ON Listings USING GIN(to_tsvector('russian', title));
+
+-- JSONB индексы для гибких данных
+CREATE INDEX idx_listing_details_jsonb ON Listing_Details USING GIN(searchable_fields);
+CREATE INDEX idx_listing_details_brand ON Listing_Details((searchable_fields->>'brand_id')) WHERE listing_type_id = 1;
+CREATE INDEX idx_listing_details_model ON Listing_Details((searchable_fields->>'model_id')) WHERE listing_type_id = 1;
+
+-- Категории (ltree для быстрых запросов по дереву)
+CREATE INDEX idx_categories_path ON Categories USING GIST(full_path);
+CREATE INDEX idx_categories_tree_parent ON Categories(tree_id, parent_category_id, sort_order);
+CREATE INDEX idx_categories_slug ON Categories(category_slug) WHERE is_active = true;
+
+-- Сообщения и диалоги
+CREATE INDEX idx_conversations_participant ON Conversation_Participants(user_id, last_read_date DESC);
+CREATE INDEX idx_messages_conversation ON Messages(conversation_id, sent_date DESC);
+CREATE INDEX idx_messages_sender ON Messages(sender_id, sent_date DESC);
+CREATE INDEX idx_messages_unread ON Conversation_Participants(conversation_id, user_id) WHERE last_read_date IS NULL;
+
+-- Медиа файлы
+CREATE INDEX idx_media_entity_primary ON Media_Storage(entity_id, file_order) WHERE is_primary = true;
+CREATE INDEX idx_media_entity_all ON Media_Storage(entity_id, media_type, file_order);
+
+-- Избранное и поиск
+CREATE INDEX idx_favorites_user_date ON Favorites(user_id, added_date DESC);
+CREATE INDEX idx_favorites_entity ON Favorites(entity_id);
+CREATE INDEX idx_search_history_user ON Search_History(user_id, search_date DESC);
+
+-- Продвижение и платежи
+CREATE INDEX idx_promotions_active ON Entity_Promotions(entity_id, end_date) WHERE status = 'active';
+CREATE INDEX idx_promotions_user ON Entity_Promotions(user_id, start_date DESC);
+CREATE INDEX idx_payments_user_date ON Payment_Transactions(user_id, created_date DESC);
+CREATE INDEX idx_payments_status ON Payment_Transactions(status_id, created_date DESC);
+
+-- Уведомления
+CREATE INDEX idx_notifications_user_status ON Notifications(user_id, status, scheduled_date);
+CREATE INDEX idx_notifications_pending ON Notifications(scheduled_date) WHERE status = 'pending';
+
+-- Модерация
+CREATE INDEX idx_moderation_status_priority ON Moderation_Queue(status_id, priority DESC, submitted_date);
+CREATE INDEX idx_moderation_user ON Moderation_Queue(user_id, submitted_date DESC);
+CREATE INDEX idx_reports_status ON Reported_Content(status_id, created_date DESC);
+
+-- Отзывы
+CREATE INDEX idx_user_reviews_reviewed ON User_Reviews(reviewed_user_id, created_date DESC) WHERE is_public = true;
+CREATE INDEX idx_user_reviews_reviewer ON User_Reviews(reviewer_id, created_date DESC);
+CREATE INDEX idx_car_reviews_model ON Car_Owner_Reviews(brand_id, model_id, created_date DESC) WHERE is_verified = true;
+
+-- Безопасность и сессии
+CREATE INDEX idx_sessions_user_active ON User_Sessions(user_id, last_activity DESC) WHERE is_active = true;
+CREATE INDEX idx_sessions_expires ON User_Sessions(expires_at) WHERE is_active = true;
+CREATE INDEX idx_login_attempts_ip_time ON Login_Attempts(ip_address, attempted_at DESC);
+CREATE INDEX idx_phone_verification_active ON Phone_Verification(phone_number, created_at DESC) WHERE verified_at IS NULL;
+
+-- SEO
+CREATE INDEX idx_entity_seo_slug ON Entity_SEO(url_slug) WHERE is_indexed = true;
+CREATE INDEX idx_entity_seo_entity ON Entity_SEO(entity_id);
+
+-- ============================================================================
+-- 20. ВНЕШНИЕ КЛЮЧИ И ОГРАНИЧЕНИЯ
+-- ============================================================================
+
+-- Добавляем внешние ключи, которые не были указаны в CREATE TABLE
+ALTER TABLE User_Profiles ADD CONSTRAINT fk_user_profiles_city FOREIGN KEY (city_id) REFERENCES Cities(city_id);
+ALTER TABLE Car_Models ADD CONSTRAINT fk_car_models_body_type FOREIGN KEY (body_type_id) REFERENCES Car_Body_Types(body_type_id);
+
+-- Проверочные ограничения
+ALTER TABLE Listings ADD CONSTRAINT chk_listings_price_positive CHECK (price IS NULL OR price >= 0);
+ALTER TABLE Listings ADD CONSTRAINT chk_listings_coordinates CHECK ((latitude IS NULL AND longitude IS NULL) OR (latitude IS NOT NULL AND longitude IS NOT NULL));
+ALTER TABLE User_Reviews ADD CONSTRAINT chk_user_reviews_not_self CHECK (reviewer_id != reviewed_user_id);
+
+-- ============================================================================
+-- 21. ТРИГГЕРЫ ДЛЯ АВТОМАТИЗАЦИИ
+-- ============================================================================
+
+-- ============================================================================
+-- 22. ЗАПОЛНЕНИЕ БАЗОВЫХ СПРАВОЧНИКОВ
+-- ============================================================================
+
+-- Страны
+INSERT INTO Countries (country_code, country_name, phone_code) VALUES
+('KZ', 'Казахстан', '+7'),
+('RU', 'Россия', '+7'),
+('BY', 'Беларусь', '+375'),
+('UZ', 'Узбекистан', '+998'),
+('KG', 'Кыргызстан', '+996');
+
+-- Типы сущностей
+INSERT INTO Entity_Types (type_code, type_name) VALUES
+('car_listing', 'Объявление о продаже автомобиля'),
+('parts_listing', 'Объявление о продаже запчастей'),
+('service_listing', 'Объявление об услугах'),
+('commercial_listing', 'Коммерческий транспорт'),
+('user', 'Пользователь'),
+('conversation', 'Диалог'),
+('message', 'Сообщение'),
+('ticket', 'Тикет поддержки'),
+('review', 'Отзыв');
+
+-- Деревья категорий
+INSERT INTO Category_Trees (tree_code, tree_name) VALUES
+('auto_categories', 'Категории автомобилей'),
+('parts_categories', 'Категории запчастей'),
+('service_categories', 'Категории услуг'),
+('commercial_categories', 'Коммерческий транспорт'),
+('support_categories', 'Категории поддержки');
+
+-- Группы статусов
+INSERT INTO Status_Groups (group_code, group_name) VALUES
+('listing_status', 'Статусы объявлений'),
+('user_status', 'Статусы пользователей'),
+('payment_status', 'Статусы платежей'),
+('ticket_status', 'Статусы тикетов'),
+('moderation_status', 'Статусы модерации'),
+('notification_status', 'Статусы уведомлений'),
+('conversation_status', 'Статусы диалогов');
+
+-- Статусы объявлений
+INSERT INTO Statuses (group_id, status_code, status_name, status_color, is_final) VALUES
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'draft', 'Черновик', '#gray', false),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'moderation', 'На модерации', '#orange', false),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'active', 'Активно', '#green', false),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'sold', 'Продано', '#blue', true),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'archived', 'В архиве', '#gray', true),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'rejected', 'Отклонено', '#red', true),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'expired', 'Истек срок', '#orange', false);
+
+-- Статусы пользователей
+INSERT INTO Statuses (group_id, status_code, status_name, status_color) VALUES
+((SELECT group_id FROM Status_Groups WHERE group_code = 'user_status'), 'active', 'Активный', '#green'),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'user_status'), 'blocked', 'Заблокирован', '#red'),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'user_status'), 'suspended', 'Приостановлен', '#orange'),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'user_status'), 'pending_verification', 'Ожидает верификации', '#yellow');
+
+-- Каналы уведомлений
+INSERT INTO Notification_Channels (channel_code, channel_name) VALUES
+('push', 'Push-уведомления'),
+('email', 'Email'),
+('sms', 'SMS'),
+('in_app', 'Внутри приложения');
+
+-- Группы атрибутов автомобилей
+INSERT INTO Car_Attribute_Groups (group_code, group_name, sort_order) VALUES
+('basic', 'Основные характеристики', 1),
+('engine', 'Двигатель', 2),
+('transmission', 'Трансмиссия', 3),
+('exterior', 'Экстерьер', 4),
+('interior', 'Интерьер', 5),
+('safety', 'Безопасность', 6),
+('comfort', 'Комфорт', 7),
+('multimedia', 'Мультимедиа', 8);
+
+-- Атрибуты автомобилей
+INSERT INTO Car_Attributes (group_id, attribute_code, attribute_name, attribute_type, is_required, is_searchable, is_filterable) VALUES
+-- Основные характеристики
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'year', 'Год выпуска', 'number', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'mileage', 'Пробег (км)', 'number', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'condition', 'Состояние', 'string', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'brand_id', 'Марка', 'reference', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'model_id', 'Модель', 'reference', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'generation_id', 'Поколение', 'reference', false, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'body_type_id', 'Тип кузова', 'reference', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'color_id', 'Цвет', 'reference', false, true, true),
+
+-- Двигатель
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'engine'), 'engine_volume', 'Объем двигателя (л)', 'number', false, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'engine'), 'engine_type_id', 'Тип двигателя', 'reference', false, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'engine'), 'fuel_consumption', 'Расход топлива', 'number', false, false, false),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'engine'), 'power_hp', 'Мощность (л.с.)', 'number', false, true, true),
+
+-- Трансмиссия
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'transmission'), 'transmission_id', 'Коробка передач', 'reference', false, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'transmission'), 'drive_type_id', 'Привод', 'reference', false, true, true),
+
+-- Дополнительные поля
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'vin_number', 'VIN номер', 'string', false, false, false),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'customs_cleared', 'Растаможен', 'boolean', false, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'exchange_possible', 'Возможен обмен', 'boolean', false, false, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'credit_available', 'Возможен кредит', 'boolean', false, false, true);
+
+-- Типы кузова
+INSERT INTO Car_Body_Types (body_type_name, sort_order) VALUES
+('Седан', 1),
+('Хэтчбек', 2),
+('Универсал', 3),
+('Лифтбек', 4),
+('Купе', 5),
+('Кабриолет', 6),
+('Родстер', 7),
+('Тарга', 8),
+('Лимузин', 9),
+('Внедорожник', 10),
+('Кроссовер', 11),
+('Пикап', 12),
+('Фургон', 13),
+('Минивэн', 14),
+('Компактвэн', 15);
+
+-- Типы двигателей
+INSERT INTO Car_Engine_Types (engine_type_name, sort_order) VALUES
+('Бензин', 1),
+('Дизель', 2),
+('Гибрид', 3),
+('Электро', 4),
+('Газ', 5),
+('Газ/Бензин', 6);
+
+-- Типы трансмиссии
+INSERT INTO Car_Transmission_Types (transmission_name, sort_order) VALUES
+('Механика', 1),
+('Автомат', 2),
+('Робот', 3),
+('Вариатор', 4);
+
+-- Типы привода
+INSERT INTO Car_Drive_Types (drive_type_name, sort_order) VALUES
+('Передний', 1),
+('Задний', 2),
+('Полный', 3);
+
+-- Популярные цвета
+INSERT INTO Car_Colors (color_name, color_hex, sort_order) VALUES
+('Белый', '#FFFFFF', 1),
+('Черный', '#000000', 2),
+('Серый', '#808080', 3),
+('Серебристый', '#C0C0C0', 4),
+('Красный', '#FF0000', 5),
+('Синий', '#0000FF', 6),
+('Зеленый', '#008000', 7),
+('Желтый', '#FFFF00', 8),
+('Оранжевый', '#FFA500', 9),
+('Коричневый', '#8B4513', 10),
+('Бежевый', '#F5F5DC', 11),
+('Золотистый', '#FFD700', 12);
+
+-- Услуги продвижения
+INSERT INTO Promotion_Services (service_code, service_name, description, price, currency_id, duration_days) VALUES
+('vip', 'VIP размещение', 'Объявление в топе результатов поиска', 2000, 1, 30),
+('featured', 'Выделенное объявление', 'Выделение цветом в списке', 1000, 1, 15),
+('boost', 'Поднятие в поиске', 'Обновление даты публикации', 500, 1, 7),
+('urgent', 'Срочная продажа', 'Отметка "Срочно"', 300, 1, 7);
+
+-- ============================================================================
+-- 23. ПРЕДСТАВЛЕНИЯ (VIEWS) ДЛЯ УДОБСТВА РАЗРАБОТКИ
+-- ============================================================================
+
+-- Представление для объявлений автомобилей с основной информацией
+CREATE VIEW v_car_listings AS
+SELECT 
+    l.listing_id,
+    l.entity_id,
+    l.user_id,
+    l.title,
+    l.description,
+    l.price,
+    c.currency_code,
+    ci.city_name,
+    r.region_name,
+    l.published_date,
+    l.view_count,
+    l.is_featured,
+    s.status_name,
+    -- Извлекаем данные из JSONB
+    (ld.searchable_fields->>'brand_id')::INTEGER as brand_id,
+    (ld.searchable_fields->>'model_id')::INTEGER as model_id,
+    (ld.searchable_fields->>'year')::INTEGER as year,
+    (ld.searchable_fields->>'mileage')::INTEGER as mileage,
+    ld.searchable_fields->>'condition' as condition,
+    -- Получаем главное изображение
+    (SELECT m.file_url FROM Media_Storage m WHERE m.entity_id = l.entity_id AND m.is_primary = true LIMIT 1) as main_image_url,
+    -- Считаем количество изображений
+    (SELECT COUNT(*) FROM Media_Storage m WHERE m.entity_id = l.entity_id AND m.media_type = 'image') as images_count
+FROM Listings l
+LEFT JOIN Listing_Details ld ON l.listing_id = ld.listing_id
+LEFT JOIN Currencies c ON l.currency_id = c.currency_id
+LEFT JOIN Cities ci ON l.city_id = ci.city_id
+LEFT JOIN Regions r ON ci.region_id = r.region_id
+LEFT JOIN Statuses s ON l.status_id = s.status_id
+WHERE l.listing_type_id = (SELECT type_id FROM Entity_Types WHERE type_code = 'car_listing');
+
+-- Представление для пользователей с профилями
+CREATE VIEW v_user_profiles AS
+SELECT 
+    u.user_id,
+    u.entity_id,
+    u.phone_number,
+    u.email,
+    u.first_name,
+    u.last_name,
+    u.user_type,
+    u.registration_date,
+    u.last_login,
+    up.company_name,
+    up.avatar_url,
+    up.rating_average,
+    up.reviews_count,
+    ci.city_name,
+    r.region_name,
+    -- Статистика пользователя
+    (SELECT COUNT(*) FROM Listings WHERE user_id = u.user_id AND status_id IN (SELECT status_id FROM Statuses WHERE status_code = 'active')) as active_listings_count,
+    (SELECT COUNT(*) FROM Listings WHERE user_id = u.user_id) as total_listings_count
+FROM Users u
+LEFT JOIN User_Profiles up ON u.user_id = up.user_id
+LEFT JOIN Cities ci ON up.city_id = ci.city_id
+LEFT JOIN Regions r ON ci.region_id = r.region_id
+WHERE u.is_active = true;
+
+-- Представление для диалогов с последним сообщением
+CREATE VIEW v_conversations_with_last_message AS
+SELECT 
+    c.conversation_id,
+    c.conversation_type,
+    c.subject,
+    c.created_date,
+    c.last_message_date,
+    -- Последнее сообщение
+    (SELECT m.message_text FROM Messages m WHERE m.conversation_id = c.conversation_id ORDER BY m.sent_date DESC LIMIT 1) as last_message_text,
+    (SELECT m.sender_id FROM Messages m WHERE m.conversation_id = c.conversation_id ORDER BY m.sent_date DESC LIMIT 1) as last_message_sender_id,
+    -- Количество участников
+    (SELECT COUNT(*) FROM Conversation_Participants cp WHERE cp.conversation_id = c.conversation_id AND cp.is_active = true) as participants_count,
+    -- Количество непрочитанных сообщений для первого участника (нужно адаптировать под конкретного пользователя)
+    (SELECT COUNT(*) FROM Messages m 
+     JOIN Conversation_Participants cp ON m.conversation_id = cp.conversation_id 
+     WHERE m.conversation_id = c.conversation_id 
+     AND m.sent_date > COALESCE(cp.last_read_date, '1970-01-01')
+     AND m.sender_id != cp.user_id
+     LIMIT 1) as unread_count
+FROM Conversations c
+WHERE c.is_active = true;
+
+-- ============================================================================
+-- 24. ФУНКЦИИ ДЛЯ БИЗНЕС-ЛОГИКИ
+-- ============================================================================
+
+-- Функция для поиска объявлений по координатам
+CREATE OR REPLACE FUNCTION search_listings_by_location(
+    search_lat DECIMAL(10,8),
+    search_lng DECIMAL(11,8),
+    radius_km INTEGER DEFAULT 50,
+    listing_type VARCHAR(50) DEFAULT 'car_listing'
+)
+RETURNS TABLE (
+    listing_id INTEGER,
+    title VARCHAR(255),
+    price DECIMAL(15,2),
+    distance_km DECIMAL(10,2)
+) AS $
+BEGIN
+    RETURN QUERY
+    SELECT 
+        l.listing_id,
+        l.title,
+        l.price,
+        (earth_distance(ll_to_earth(search_lat, search_lng), ll_to_earth(l.latitude, l.longitude)) / 1000)::DECIMAL(10,2) as distance_km
+    FROM Listings l
+    JOIN Entity_Types et ON l.listing_type_id = et.type_id
+    WHERE et.type_code = listing_type
+    AND l.latitude IS NOT NULL 
+    AND l.longitude IS NOT NULL
+    AND earth_box(ll_to_earth(search_lat, search_lng), radius_km * 1000) @> ll_to_earth(l.latitude, l.longitude)
+    AND l.status_id = (SELECT status_id FROM Statuses WHERE status_code = 'active' LIMIT 1)
+    ORDER BY distance_km;
+END;
+$ LANGUAGE plpgsql;
+
+-- Функция для получения статистики пользователя
+CREATE OR REPLACE FUNCTION get_user_stats(input_user_id INTEGER)
+RETURNS JSON AS $
+DECLARE
+    result JSON;
+BEGIN
+    SELECT json_build_object(
+        'total_listings', COUNT(*),
+        'active_listings', COUNT(*) FILTER (WHERE s.status_code = 'active'),
+        'sold_listings', COUNT(*) FILTER (WHERE s.status_code = 'sold'),
+        'total_views', COALESCE(SUM(l.view_count), 0),
+        'avg_rating', COALESCE(up.rating_average, 0),
+        'reviews_count', COALESCE(up.reviews_count, 0)
+    )
+    INTO result
+    FROM Users u
+    LEFT JOIN User_Profiles up ON u.user_id = up.user_id
+    LEFT JOIN Listings l ON u.user_id = l.user_id
+    LEFT JOIN Statuses s ON l.status_id = s.status_id
+    WHERE u.user_id = input_user_id
+    GROUP BY u.user_id, up.rating_average, up.reviews_count;
+    
+    RETURN result;
+END;
+$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- КОНЕЦ СХЕМЫ
+-- ============================================================================
+
+-- Дополнительные команды для оптимизации
+ANALYZE;
+
+-- Комментарии к ключевым таблицам
+COMMENT ON TABLE Global_Entities IS 'Центральная таблица для управления всеми сущностями системы';
+COMMENT ON TABLE Listings IS 'Универсальная таблица объявлений всех типов';
+COMMENT ON TABLE Listing_Details IS 'JSONB хранилище для специфичных атрибутов объявлений';
+COMMENT ON TABLE Categories IS 'Иерархическая система категорий с поддержкой ltree';
+COMMENT ON TABLE Media_Storage IS 'Централизованное хранение медиафайлов для всех сущностей';
+COMMENT ON TABLE Conversations IS 'Универсальная система диалогов (чаты, поддержка)';
+
+-- Информация о схеме
+SELECT 'Kolesa.kz Database Schema v2.0 successfully created!' as status;
+
+
+ПОСЛЕ ВОЗНИКНОВЕНИЯ ОШИБКИ КОПИРУЕШЬ ОТСЮДА;;;
+-- ============================================================================
+-- ИСПРАВЛЕННЫЕ ФУНКЦИИ И ТРИГГЕРЫ ДЛЯ KOLESA.KZ
+-- ============================================================================
+
+-- Функция для обновления updated_date
+CREATE OR REPLACE FUNCTION update_updated_date_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_date = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Триггеры для автоматического обновления updated_date
+CREATE TRIGGER trigger_users_updated_date 
+    BEFORE UPDATE ON Users 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_date_column();
+
+CREATE TRIGGER trigger_user_profiles_updated_date 
+    BEFORE UPDATE ON User_Profiles 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_date_column();
+
+CREATE TRIGGER trigger_user_settings_updated_date 
+    BEFORE UPDATE ON User_Settings 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_date_column();
+
+CREATE TRIGGER trigger_listings_updated_date 
+    BEFORE UPDATE ON Listings 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_date_column();
+
+CREATE TRIGGER trigger_listing_details_updated_date 
+    BEFORE UPDATE ON Listing_Details 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_date_column();
+
+-- Функция для автоматического создания entity_id
+CREATE OR REPLACE FUNCTION create_entity_before_insert()
+RETURNS TRIGGER AS $$
+DECLARE
+    new_entity_id BIGINT;
+    entity_type_name VARCHAR(50);
+BEGIN
+    -- Определяем тип сущности по имени таблицы
+    CASE TG_TABLE_NAME
+        WHEN 'users' THEN entity_type_name := 'user';
+        WHEN 'listings' THEN entity_type_name := 'listing';
+        WHEN 'conversations' THEN entity_type_name := 'conversation';
+        WHEN 'messages' THEN entity_type_name := 'message';
+        WHEN 'support_tickets' THEN entity_type_name := 'ticket';
+        ELSE entity_type_name := 'unknown';
+    END CASE;
+    
+    -- Создаем новую запись в Global_Entities
+    INSERT INTO Global_Entities (entity_type) 
+    VALUES (entity_type_name) 
+    RETURNING entity_id INTO new_entity_id;
+    
+    -- Присваиваем entity_id новой записи
+    NEW.entity_id := new_entity_id;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Триггеры для автоматического создания entity_id
+CREATE TRIGGER trigger_users_create_entity 
+    BEFORE INSERT ON Users 
+    FOR EACH ROW 
+    EXECUTE FUNCTION create_entity_before_insert();
+
+CREATE TRIGGER trigger_listings_create_entity 
+    BEFORE INSERT ON Listings 
+    FOR EACH ROW 
+    EXECUTE FUNCTION create_entity_before_insert();
+
+CREATE TRIGGER trigger_conversations_create_entity 
+    BEFORE INSERT ON Conversations 
+    FOR EACH ROW 
+    EXECUTE FUNCTION create_entity_before_insert();
+
+CREATE TRIGGER trigger_messages_create_entity 
+    BEFORE INSERT ON Messages 
+    FOR EACH ROW 
+    EXECUTE FUNCTION create_entity_before_insert();
+
+CREATE TRIGGER trigger_support_tickets_create_entity 
+    BEFORE INSERT ON Support_Tickets 
+    FOR EACH ROW 
+    EXECUTE FUNCTION create_entity_before_insert();
+
+CREATE TRIGGER trigger_user_reviews_create_entity 
+    BEFORE INSERT ON User_Reviews 
+    FOR EACH ROW 
+    EXECUTE FUNCTION create_entity_before_insert();
+
+CREATE TRIGGER trigger_car_owner_reviews_create_entity 
+    BEFORE INSERT ON Car_Owner_Reviews 
+    FOR EACH ROW 
+    EXECUTE FUNCTION create_entity_before_insert();
+
+-- Функция для обновления поискового вектора
+CREATE OR REPLACE FUNCTION update_listing_search_vector()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.search_vector := to_tsvector('russian', 
+        COALESCE(NEW.title, '') || ' ' || COALESCE(NEW.description, '')
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_listings_search_vector 
+    BEFORE INSERT OR UPDATE OF title, description ON Listings 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_listing_search_vector();
+
+-- Функция для обновления счетчиков пользователя
+CREATE OR REPLACE FUNCTION update_user_stats()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        -- Обновляем счетчики при добавлении отзыва
+        UPDATE User_Profiles SET 
+            reviews_count = reviews_count + 1,
+            rating_average = (
+                SELECT AVG(rating) 
+                FROM User_Reviews 
+                WHERE reviewed_user_id = NEW.reviewed_user_id AND is_public = true
+            )
+        WHERE user_id = NEW.reviewed_user_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        -- Обновляем счетчики при удалении отзыва
+        UPDATE User_Profiles SET 
+            reviews_count = GREATEST(reviews_count - 1, 0),
+            rating_average = COALESCE((
+                SELECT AVG(rating) 
+                FROM User_Reviews 
+                WHERE reviewed_user_id = OLD.reviewed_user_id AND is_public = true
+            ), 0)
+        WHERE user_id = OLD.reviewed_user_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_user_reviews_stats 
+    AFTER INSERT OR DELETE ON User_Reviews 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_user_stats();
+
+-- ============================================================================
+-- ИСПРАВЛЕНИЕ INSERT ЗАПРОСОВ
+-- ============================================================================
+
+-- Валюты (исправляем символ доллара)
+INSERT INTO Currencies (currency_code, currency_name, symbol, is_base_currency, exchange_rate_to_kzt) VALUES
+('KZT', 'Казахстанский тенге', '₸', true, 1),
+('USD', 'Доллар США', '$', false, 480),
+('EUR', 'Евро', '€', false, 520),
+('RUB', 'Российский рубль', '₽', false, 5.2);
+
+-- Типы сущностей
+INSERT INTO Entity_Types (type_code, type_name) VALUES
+('car_listing', 'Объявление о продаже автомобиля'),
+('parts_listing', 'Объявление о продаже запчастей'),
+('service_listing', 'Объявление об услугах'),
+('commercial_listing', 'Коммерческий транспорт'),
+('user', 'Пользователь'),
+('conversation', 'Диалог'),
+('message', 'Сообщение'),
+('ticket', 'Тикет поддержки'),
+('review', 'Отзыв');
+
+-- Деревья категорий
+INSERT INTO Category_Trees (tree_code, tree_name) VALUES
+('auto_categories', 'Категории автомобилей'),
+('parts_categories', 'Категории запчастей'),
+('service_categories', 'Категории услуг'),
+('commercial_categories', 'Коммерческий транспорт'),
+('support_categories', 'Категории поддержки');
+
+-- Группы статусов
+INSERT INTO Status_Groups (group_code, group_name) VALUES
+('listing_status', 'Статусы объявлений'),
+('user_status', 'Статусы пользователей'),
+('payment_status', 'Статусы платежей'),
+('ticket_status', 'Статусы тикетов'),
+('moderation_status', 'Статусы модерации'),
+('notification_status', 'Статусы уведомлений'),
+('conversation_status', 'Статусы диалогов');
+
+-- Статусы объявлений
+INSERT INTO Statuses (group_id, status_code, status_name, status_color, is_final) VALUES
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'draft', 'Черновик', '#gray', false),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'moderation', 'На модерации', '#orange', false),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'active', 'Активно', '#green', false),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'sold', 'Продано', '#blue', true),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'archived', 'В архиве', '#gray', true),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'rejected', 'Отклонено', '#red', true),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'listing_status'), 'expired', 'Истек срок', '#orange', false);
+
+-- Статусы пользователей
+INSERT INTO Statuses (group_id, status_code, status_name, status_color) VALUES
+((SELECT group_id FROM Status_Groups WHERE group_code = 'user_status'), 'active', 'Активный', '#green'),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'user_status'), 'blocked', 'Заблокирован', '#red'),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'user_status'), 'suspended', 'Приостановлен', '#orange'),
+((SELECT group_id FROM Status_Groups WHERE group_code = 'user_status'), 'pending_verification', 'Ожидает верификации', '#yellow');
+
+-- Каналы уведомлений
+INSERT INTO Notification_Channels (channel_code, channel_name) VALUES
+('push', 'Push-уведомления'),
+('email', 'Email'),
+('sms', 'SMS'),
+('in_app', 'Внутри приложения');
+
+-- Группы атрибутов автомобилей
+INSERT INTO Car_Attribute_Groups (group_code, group_name, sort_order) VALUES
+('basic', 'Основные характеристики', 1),
+('engine', 'Двигатель', 2),
+('transmission', 'Трансмиссия', 3),
+('exterior', 'Экстерьер', 4),
+('interior', 'Интерьер', 5),
+('safety', 'Безопасность', 6),
+('comfort', 'Комфорт', 7),
+('multimedia', 'Мультимедиа', 8);
+
+-- Атрибуты автомобилей
+INSERT INTO Car_Attributes (group_id, attribute_code, attribute_name, attribute_type, is_required, is_searchable, is_filterable) VALUES
+-- Основные характеристики
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'year', 'Год выпуска', 'number', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'mileage', 'Пробег (км)', 'number', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'condition', 'Состояние', 'string', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'brand_id', 'Марка', 'reference', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'model_id', 'Модель', 'reference', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'generation_id', 'Поколение', 'reference', false, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'body_type_id', 'Тип кузова', 'reference', true, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'color_id', 'Цвет', 'reference', false, true, true),
+
+-- Двигатель
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'engine'), 'engine_volume', 'Объем двигателя (л)', 'number', false, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'engine'), 'engine_type_id', 'Тип двигателя', 'reference', false, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'engine'), 'fuel_consumption', 'Расход топлива', 'number', false, false, false),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'engine'), 'power_hp', 'Мощность (л.с.)', 'number', false, true, true),
+
+-- Трансмиссия
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'transmission'), 'transmission_id', 'Коробка передач', 'reference', false, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'transmission'), 'drive_type_id', 'Привод', 'reference', false, true, true),
+
+-- Дополнительные поля
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'vin_number', 'VIN номер', 'string', false, false, false),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'customs_cleared', 'Растаможен', 'boolean', false, true, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'exchange_possible', 'Возможен обмен', 'boolean', false, false, true),
+((SELECT group_id FROM Car_Attribute_Groups WHERE group_code = 'basic'), 'credit_available', 'Возможен кредит', 'boolean', false, false, true);
+
+-- Типы кузова
+INSERT INTO Car_Body_Types (body_type_name, sort_order) VALUES
+('Седан', 1),
+('Хэтчбек', 2),
+('Универсал', 3),
+('Лифтбек', 4),
+('Купе', 5),
+('Кабриолет', 6),
+('Родстер', 7),
+('Тарга', 8),
+('Лимузин', 9),
+('Внедорожник', 10),
+('Кроссовер', 11),
+('Пикап', 12),
+('Фургон', 13),
+('Минивэн', 14),
+('Компактвэн', 15);
+
+-- Типы двигателей
+INSERT INTO Car_Engine_Types (engine_type_name, sort_order) VALUES
+('Бензин', 1),
+('Дизель', 2),
+('Гибрид', 3),
+('Электро', 4),
+('Газ', 5),
+('Газ/Бензин', 6);
+
+-- Типы трансмиссии
+INSERT INTO Car_Transmission_Types (transmission_name, sort_order) VALUES
+('Механика', 1),
+('Автомат', 2),
+('Робот', 3),
+('Вариатор', 4);
+
+-- Типы привода
+INSERT INTO Car_Drive_Types (drive_type_name, sort_order) VALUES
+('Передний', 1),
+('Задний', 2),
+('Полный', 3);
+
+-- Популярные цвета
+INSERT INTO Car_Colors (color_name, color_hex, sort_order) VALUES
+('Белый', '#FFFFFF', 1),
+('Черный', '#000000', 2),
+('Серый', '#808080', 3),
+('Серебристый', '#C0C0C0', 4),
+('Красный', '#FF0000', 5),
+('Синий', '#0000FF', 6),
+('Зеленый', '#008000', 7),
+('Желтый', '#FFFF00', 8),
+('Оранжевый', '#FFA500', 9),
+('Коричневый', '#8B4513', 10),
+('Бежевый', '#F5F5DC', 11),
+('Золотистый', '#FFD700', 12);
+
+-- Услуги продвижения
+INSERT INTO Promotion_Services (service_code, service_name, description, price, currency_id, duration_days) VALUES
+('vip', 'VIP размещение', 'Объявление в топе результатов поиска', 2000, 1, 30),
+('featured', 'Выделенное объявление', 'Выделение цветом в списке', 1000, 1, 15),
+('boost', 'Поднятие в поиске', 'Обновление даты публикации', 500, 1, 7),
+('urgent', 'Срочная продажа', 'Отметка "Срочно"', 300, 1, 7);
+
+-- ============================================================================
+-- ИСПРАВЛЕННЫЕ ПРЕДСТАВЛЕНИЯ (VIEWS)
+-- ============================================================================
+
+-- Представление для объявлений автомобилей с основной информацией
+CREATE VIEW v_car_listings AS
+SELECT 
+    l.listing_id,
+    l.entity_id,
+    l.user_id,
+    l.title,
+    l.description,
+    l.price,
+    c.currency_code,
+    ci.city_name,
+    r.region_name,
+    l.published_date,
+    l.view_count,
+    l.is_featured,
+    s.status_name,
+    -- Извлекаем данные из JSONB
+    (ld.searchable_fields->>'brand_id')::INTEGER as brand_id,
+    (ld.searchable_fields->>'model_id')::INTEGER as model_id,
+    (ld.searchable_fields->>'year')::INTEGER as year,
+    (ld.searchable_fields->>'mileage')::INTEGER as mileage,
+    ld.searchable_fields->>'condition' as condition,
+    -- Получаем главное изображение
+    (SELECT m.file_url FROM Media_Storage m WHERE m.entity_id = l.entity_id AND m.is_primary = true LIMIT 1) as main_image_url,
+    -- Считаем количество изображений
+    (SELECT COUNT(*) FROM Media_Storage m WHERE m.entity_id = l.entity_id AND m.media_type = 'image') as images_count
+FROM Listings l
+LEFT JOIN Listing_Details ld ON l.listing_id = ld.listing_id
+LEFT JOIN Currencies c ON l.currency_id = c.currency_id
+LEFT JOIN Cities ci ON l.city_id = ci.city_id
+LEFT JOIN Regions r ON ci.region_id = r.region_id
+LEFT JOIN Statuses s ON l.status_id = s.status_id
+WHERE l.listing_type_id = (SELECT type_id FROM Entity_Types WHERE type_code = 'car_listing');
+
+-- Представление для пользователей с профилями
+CREATE VIEW v_user_profiles AS
+SELECT 
+    u.user_id,
+    u.entity_id,
+    u.phone_number,
+    u.email,
+    u.first_name,
+    u.last_name,
+    u.user_type,
+    u.registration_date,
+    u.last_login,
+    up.company_name,
+    up.avatar_url,
+    up.rating_average,
+    up.reviews_count,
+    ci.city_name,
+    r.region_name,
+    -- Статистика пользователя
+    (SELECT COUNT(*) FROM Listings WHERE user_id = u.user_id AND status_id IN (SELECT status_id FROM Statuses WHERE status_code = 'active')) as active_listings_count,
+    (SELECT COUNT(*) FROM Listings WHERE user_id = u.user_id) as total_listings_count
+FROM Users u
+LEFT JOIN User_Profiles up ON u.user_id = up.user_id
+LEFT JOIN Cities ci ON up.city_id = ci.city_id
+LEFT JOIN Regions r ON ci.region_id = r.region_id
+WHERE u.is_active = true;
+
+-- Представление для диалогов с последним сообщением
+CREATE VIEW v_conversations_with_last_message AS
+SELECT 
+    c.conversation_id,
+    c.conversation_type,
+    c.subject,
+    c.created_date,
+    c.last_message_date,
+    -- Последнее сообщение
+    (SELECT m.message_text FROM Messages m WHERE m.conversation_id = c.conversation_id ORDER BY m.sent_date DESC LIMIT 1) as last_message_text,
+    (SELECT m.sender_id FROM Messages m WHERE m.conversation_id = c.conversation_id ORDER BY m.sent_date DESC LIMIT 1) as last_message_sender_id,
+    -- Количество участников
+    (SELECT COUNT(*) FROM Conversation_Participants cp WHERE cp.conversation_id = c.conversation_id AND cp.is_active = true) as participants_count,
+    -- Количество непрочитанных сообщений для первого участника (нужно адаптировать под конкретного пользователя)
+    (SELECT COUNT(*) FROM Messages m 
+     JOIN Conversation_Participants cp ON m.conversation_id = cp.conversation_id 
+     WHERE m.conversation_id = c.conversation_id 
+     AND m.sent_date > COALESCE(cp.last_read_date, '1970-01-01')
+     AND m.sender_id != cp.user_id
+     LIMIT 1) as unread_count
+FROM Conversations c
+WHERE c.is_active = true;
+
+-- ============================================================================
+-- ИСПРАВЛЕННЫЕ ФУНКЦИИ ДЛЯ БИЗНЕС-ЛОГИКИ
+-- ============================================================================
+
+-- Функция для поиска объявлений по координатам
+CREATE OR REPLACE FUNCTION search_listings_by_location(
+    search_lat DECIMAL(10,8),
+    search_lng DECIMAL(11,8),
+    radius_km INTEGER DEFAULT 50,
+    listing_type VARCHAR(50) DEFAULT 'car_listing'
+)
+RETURNS TABLE (
+    listing_id INTEGER,
+    title VARCHAR(255),
+    price DECIMAL(15,2),
+    distance_km DECIMAL(10,2)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        l.listing_id,
+        l.title,
+        l.price,
+        (earth_distance(ll_to_earth(search_lat, search_lng), ll_to_earth(l.latitude, l.longitude)) / 1000)::DECIMAL(10,2) as distance_km
+    FROM Listings l
+    JOIN Entity_Types et ON l.listing_type_id = et.type_id
+    WHERE et.type_code = listing_type
+    AND l.latitude IS NOT NULL 
+    AND l.longitude IS NOT NULL
+    AND earth_box(ll_to_earth(search_lat, search_lng), radius_km * 1000) @> ll_to_earth(l.latitude, l.longitude)
+    AND l.status_id = (SELECT status_id FROM Statuses WHERE status_code = 'active' LIMIT 1)
+    ORDER BY distance_km;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Функция для получения статистики пользователя
+CREATE OR REPLACE FUNCTION get_user_stats(input_user_id INTEGER)
+RETURNS JSON AS $$
+DECLARE
+    result JSON;
+BEGIN
+    SELECT json_build_object(
+        'total_listings', COUNT(*),
+        'active_listings', COUNT(*) FILTER (WHERE s.status_code = 'active'),
+        'sold_listings', COUNT(*) FILTER (WHERE s.status_code = 'sold'),
+        'total_views', COALESCE(SUM(l.view_count), 0),
+        'avg_rating', COALESCE(up.rating_average, 0),
+        'reviews_count', COALESCE(up.reviews_count, 0)
+    )
+    INTO result
+    FROM Users u
+    LEFT JOIN User_Profiles up ON u.user_id = up.user_id
+    LEFT JOIN Listings l ON u.user_id = l.user_id
+    LEFT JOIN Statuses s ON l.status_id = s.status_id
+    WHERE u.user_id = input_user_id
+    GROUP BY u.user_id, up.rating_average, up.reviews_count;
+    
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Дополнительные команды для оптимизации
+ANALYZE;
+
+-- Комментарии к ключевым таблицам
+COMMENT ON TABLE Global_Entities IS 'Центральная таблица для управления всеми сущностями системы';
+COMMENT ON TABLE Listings IS 'Универсальная таблица объявлений всех типов';
+COMMENT ON TABLE Listing_Details IS 'JSONB хранилище для специфичных атрибутов объявлений';
+COMMENT ON TABLE Categories IS 'Иерархическая система категорий с поддержкой ltree';
+COMMENT ON TABLE Media_Storage IS 'Централизованное хранение медиафайлов для всех сущностей';
+COMMENT ON TABLE Conversations IS 'Универсальная система диалогов (чаты, поддержка)';
+
+-- Информация о схеме
+SELECT 'Kolesa.kz Database Schema v2.0 successfully created!' as status;
+
+
+ALTER TABLE phone_verification
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE phone_verification
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+ALTER TABLE phone_verification
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE phone_verification
+ALTER COLUMN created_date SET DEFAULT now();
+
+ALTER TABLE email_verification
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE email_verification
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE email_verification
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE email_verification
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;

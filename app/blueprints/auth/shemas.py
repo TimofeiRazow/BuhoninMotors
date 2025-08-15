@@ -1,5 +1,5 @@
 # app/blueprints/auth/schemas.py
-from marshmallow import Schema, fields, validate, validates, ValidationError
+from marshmallow import Schema, fields, validate, validates, ValidationError, validates_schema
 from app.utils.helpers import normalize_phone_number, validate_email_address
 
 
@@ -28,9 +28,16 @@ class RegisterSchema(Schema):
 
 class LoginSchema(Schema):
     """Схема для входа пользователя"""
-    identifier = fields.Str(required=True, validate=validate.Length(min=3, max=255))
+    identifier = fields.Str(required=False, validate=validate.Length(min=3, max=255))
     password = fields.Str(required=True, validate=validate.Length(min=1, max=100))
+    phone_number = fields.Str(required=False)
     remember_me = fields.Bool(required=False, default=False)
+
+    
+    @validates_schema
+    def validate_identifier_or_phone(self, data, **kwargs):
+        if not data.get('identifier') and not data.get('phone_number'):
+            raise ValidationError('Either identifier or phone_number is required.')
 
 class VerifyPhoneSchema(Schema):
     """Схема для верификации телефона"""

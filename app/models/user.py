@@ -25,7 +25,8 @@ class User(EntityBasedModel):
 
     support_tickets = db.relationship("SupportTicket", foreign_keys="SupportTicket.user_id", back_populates="user")
     assigned_tickets = db.relationship("SupportTicket", foreign_keys="SupportTicket.assigned_to", back_populates="assigned_user")
-
+    # Add this to your User model
+    notification_settings = db.relationship("UserNotificationSettings", back_populates="user")
     
     __table_args__ = (
         db.CheckConstraint(

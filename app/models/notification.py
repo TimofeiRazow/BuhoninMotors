@@ -11,24 +11,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 from app.models.base import BaseModel
 from app.database import Base, TimestampMixin, db
 
-class UserNotificationSettings(Base, TimestampMixin):
-    """Настройки уведомлений пользователей"""
-    __tablename__ = 'user_notification_settings'
-    
-    user_id = Column(Integer, ForeignKey('users.user_id'), primary_key=True)
-    channel_id = Column(Integer, ForeignKey('notification_channels.channel_id'), primary_key=True)
-    notification_type = Column(String(50), primary_key=True)
-    is_enabled = Column(Boolean, default=True)
-    frequency = Column(String(20), default='instant')  # instant, daily, weekly, never
-    
-    # Связи
-    user = relationship("User", back_populates="notification_settings")
-    channel = relationship("NotificationChannel", back_populates="user_settings")
-    
-    def __repr__(self):
-        return f"<UserNotificationSettings {self.user_id}:{self.notification_type}>"
-
-
 
 class NotificationChannel(BaseModel):
     """Каналы уведомлений (push, email, sms, in_app)"""
@@ -40,7 +22,7 @@ class NotificationChannel(BaseModel):
     is_active = Column(Boolean, default=True)
     settings = Column(JSONB, default={})
     
-    # Relationships
+    # Relationships - использование строк для отложенной инициализации
     templates = relationship('NotificationTemplate', back_populates='channel')
     notifications = relationship('Notification', back_populates='channel')
     user_settings = relationship('UserNotificationSettings', back_populates='channel')
@@ -85,6 +67,24 @@ class NotificationTemplate(BaseModel):
     
     def __repr__(self):
         return f'<NotificationTemplate {self.template_code}>'
+
+
+class UserNotificationSettings(BaseModel, TimestampMixin):
+    """Настройки уведомлений пользователей"""
+    __tablename__ = 'user_notification_settings'
+    
+    user_id = Column(Integer, ForeignKey('users.user_id'), primary_key=True)
+    channel_id = Column(Integer, ForeignKey('notification_channels.channel_id'), primary_key=True)
+    notification_type = Column(String(50), primary_key=True)
+    is_enabled = Column(Boolean, default=True)
+    frequency = Column(String(20), default='instant')  # instant, daily, weekly, never
+    
+    # Связи - используем строки для отложенной инициализации
+    user = relationship("User", back_populates="notification_settings")
+    channel = relationship("NotificationChannel", back_populates="user_settings")
+    
+    def __repr__(self):
+        return f"<UserNotificationSettings {self.user_id}:{self.notification_type}>"
 
 
 class Notification(BaseModel):

@@ -30,7 +30,7 @@ class Config:
     
     # Redis настройки (для кэша и Celery)
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
-    CACHE_TYPE = "RedisCache"
+    CACHE_TYPE = "SimpleCache"
     CACHE_REDIS_URL = REDIS_URL
     CACHE_DEFAULT_TIMEOUT = 300
     

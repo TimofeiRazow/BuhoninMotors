@@ -168,6 +168,8 @@ class Category(BaseModel):
     # Отношения
     tree = db.relationship('CategoryTree', backref='categories')
     parent = db.relationship('Category', remote_side=[category_id], backref='children')
+    support_tickets = db.relationship('SupportTicket', back_populates='category')
+
     
     def get_breadcrumbs(self):
         """Получение хлебных крошек до корневой категории"""

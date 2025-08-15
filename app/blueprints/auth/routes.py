@@ -7,14 +7,14 @@ from app.blueprints.auth.shemas import (
     VerifyEmailSchema, ResetPasswordSchema, ChangePasswordSchema, RefreshTokenSchema
 )
 from app.blueprints.auth.services import AuthService
-from app.utils.decorators import validate_json, handle_errors, auth_required, rate_limit_by_user
+from app.utils.decorators import validate_json, handle_errors, auth_required, rate_limit_by_user, rate_limit_by_ip
 from app.utils.helpers import build_response, build_error_response
 
 
 @bp.route('/register', methods=['POST'])
 @handle_errors
 @validate_json(RegisterSchema)
-@rate_limit_by_user('register', max_requests=5, window_minutes=60)
+#@rate_limit_by_ip('register', max_requests=5, window_minutes=60)
 def register():
     """Регистрация нового пользователя"""
     data = g.validated_data

@@ -128,59 +128,6 @@ kolesa_backend/
 ├── run.py                             # Точка входа
 └── wsgi.py                            # WSGI entry point для продакшена
 ```
-
-## Основные компоненты
-
-### 1. Blueprints (API модули)
-
-#### Auth Blueprint (`/api/auth`)
-- `POST /register` - Регистрация
-- `POST /login` - Вход
-- `POST /logout` - Выход
-- `POST /refresh` - Обновление JWT токена
-- `POST /verify-phone` - Верификация телефона
-- `POST /verify-email` - Верификация email
-- `POST /reset-password` - Сброс пароля
-
-#### Users Blueprint (`/api/users`)
-- `GET /profile` - Профиль пользователя
-- `PUT /profile` - Обновление профиля
-- `GET /settings` - Настройки пользователя
-- `PUT /settings` - Обновление настроек
-- `GET /stats` - Статистика пользователя
-- `GET /{user_id}/reviews` - Отзывы о пользователе
-
-#### Listings Blueprint (`/api/listings`)
-- `GET /` - Поиск объявлений
-- `POST /` - Создание объявления
-- `GET /{id}` - Получение объявления
-- `PUT /{id}` - Обновление объявления
-- `DELETE /{id}` - Удаление объявления
-- `POST /{id}/favorite` - Добавить в избранное
-- `GET /favorites` - Избранные объявления
-- `POST /{id}/view` - Увеличить счетчик просмотров
-
-#### Cars Blueprint (`/api/cars`)
-- `GET /brands` - Марки автомобилей
-- `GET /brands/{id}/models` - Модели по марке
-- `GET /models/{id}/generations` - Поколения модели
-- `GET /attributes` - Атрибуты автомобилей
-- `GET /body-types` - Типы кузова
-- `GET /engine-types` - Типы двигателей
-
-#### Locations Blueprint (`/api/locations`)
-- `GET /countries` - Страны
-- `GET /regions` - Регионы
-- `GET /cities` - Города
-- `GET /cities/search` - Поиск городов
-
-#### Conversations Blueprint (`/api/conversations`)
-- `GET /` - Список диалогов
-- `POST /` - Создание диалога
-- `GET /{id}/messages` - Сообщения диалога
-- `POST /{id}/messages` - Отправка сообщения
-- `PUT /messages/{id}/read` - Отметить как прочитанное
-
 ### 2. Модели данных
 
 Каждый файл модели содержит соответствующие SQLAlchemy модели:

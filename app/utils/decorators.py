@@ -177,6 +177,34 @@ def rate_limit_by_user(limit_key, max_requests=10, window_minutes=60):
     return decorator
 
 
+def rate_limit_by_ip(limit_key, max_requests=10, window_minutes=60):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            from app.extensions import cache
+            from app.utils.exceptions import RateLimitError
+            import time
+            
+            ip = request.remote_addr
+            cache_key = f"rate_limit:{limit_key}:{ip}"
+            
+            current_requests = cache.get(cache_key) or []
+            current_time = time.time()
+            window_start = current_time - (window_minutes * 60)
+            recent_requests = [t for t in current_requests if t > window_start]
+            
+            if len(recent_requests) >= max_requests:
+                raise RateLimitError(f"Rate limit exceeded: {max_requests} requests per {window_minutes} minutes")
+            
+            recent_requests.append(current_time)
+            cache.set(cache_key, recent_requests, timeout=window_minutes * 60)
+            
+            return f(*args, **kwargs)
+        
+        return decorated_function
+    return decorator
+
+
 def cache_response(timeout=300, key_prefix=None):
     """Декоратор для кэширования ответов"""
     def decorator(f):

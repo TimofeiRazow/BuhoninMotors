@@ -18,6 +18,7 @@ class SupportTicket(BaseModel):
     entity_id = Column(Integer, ForeignKey('global_entities.entity_id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
     category_id = Column(Integer, ForeignKey('categories.category_id'), nullable=True)
+    support_category_id = Column(Integer, ForeignKey('support_categories.category_id'), nullable=True)
     priority = Column(String(20), nullable=False, default='medium')  # low, medium, high, critical
     subject = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
@@ -33,6 +34,8 @@ class SupportTicket(BaseModel):
     user = relationship("User", foreign_keys=[user_id], back_populates="support_tickets")
     assigned_user = relationship("User", foreign_keys=[assigned_to], back_populates="assigned_tickets")
     category = relationship("Category", back_populates="support_tickets")
+    support_category = relationship("SupportCategory", back_populates="tickets")
+    responses = relationship("TicketResponse", back_populates="ticket")
     
     def __repr__(self):
         return f'<SupportTicket {self.ticket_id}: {self.subject}>'
@@ -88,6 +91,7 @@ class SupportCategory(BaseModel):
     entity = relationship("GlobalEntity")
     parent_category = relationship("SupportCategory", remote_side=[category_id])
     tickets = relationship("SupportTicket", back_populates="support_category")
+    faqs = relationship("SupportFAQ", back_populates="category")
     
     def __repr__(self):
         return f'<SupportCategory {self.category_id}: {self.category_name}>'
@@ -132,7 +136,7 @@ class SupportFAQ(BaseModel):
     
     # Relationships
     entity = relationship("GlobalEntity")
-    category = relationship("SupportCategory")
+    category = relationship("SupportCategory", back_populates="faqs")
     
     def __repr__(self):
         return f'<SupportFAQ {self.faq_id}: {self.question[:50]}...>'

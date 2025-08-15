@@ -204,7 +204,6 @@ auth.log
 
 # Папки для загрузок
 uploads/
-media/
 static/uploads/
 user_uploads/
 temp_uploads/
