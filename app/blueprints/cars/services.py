@@ -9,6 +9,7 @@ from app.models.car import (
 from app.utils.exceptions import NotFoundError
 from app.utils.pagination import paginate_query
 from app.extensions import cache
+from app.database import db
 
 
 class CarService:

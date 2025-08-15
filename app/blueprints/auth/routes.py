@@ -37,13 +37,13 @@ def register():
 @bp.route('/login', methods=['POST'])
 @handle_errors
 @validate_json(LoginSchema)
-@rate_limit_by_user('login', max_requests=10, window_minutes=15)
+@rate_limit_by_ip('login', max_requests=10, window_minutes=15)
 def login():
     """Вход пользователя"""
     data = g.validated_data
     
     user, tokens = AuthService.authenticate_user(
-        identifier=data['identifier'],
+        identifier=data['phone_number'],
         password=data['password']
     )
     

@@ -81,6 +81,7 @@ CREATE TABLE User_Settings (
     privacy_settings JSONB DEFAULT '{}',
     preferred_language VARCHAR(10) DEFAULT 'ru',
     timezone VARCHAR(50) DEFAULT 'Asia/Almaty',
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -94,6 +95,8 @@ CREATE TABLE Device_Registration (
     app_version VARCHAR(50),
     registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_active_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     is_active BOOLEAN DEFAULT true
 );
 
@@ -153,7 +156,8 @@ CREATE TABLE Categories (
     icon_url VARCHAR(500),
     description TEXT,
     is_active BOOLEAN DEFAULT true,
-    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================================
@@ -176,6 +180,8 @@ CREATE TABLE Statuses (
     is_active BOOLEAN DEFAULT true,
     is_final BOOLEAN DEFAULT false,
     sort_order INTEGER DEFAULT 0,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(group_id, status_code)
 );
 
@@ -191,6 +197,8 @@ CREATE TABLE Currencies (
     exchange_rate_to_kzt DECIMAL(15,6) DEFAULT 1,
     is_base_currency BOOLEAN DEFAULT false,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT true
 );
 
@@ -206,7 +214,8 @@ CREATE TABLE Car_Brands (
     country_origin VARCHAR(100),
     sort_order INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
-    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Car_Models (
@@ -219,6 +228,7 @@ CREATE TABLE Car_Models (
     body_type_id INTEGER,
     is_active BOOLEAN DEFAULT true,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(brand_id, model_name)
 );
 
@@ -230,6 +240,8 @@ CREATE TABLE Car_Generations (
     end_year INTEGER,
     description TEXT,
     is_active BOOLEAN DEFAULT true
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Car_Attribute_Groups (
@@ -238,6 +250,8 @@ CREATE TABLE Car_Attribute_Groups (
     group_code VARCHAR(50) UNIQUE NOT NULL,
     sort_order INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Car_Attributes (
@@ -253,6 +267,8 @@ CREATE TABLE Car_Attributes (
     sort_order INTEGER DEFAULT 0,
     validation_rules JSONB,
     default_value TEXT
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Предустановленные справочники для автомобилей
@@ -260,32 +276,42 @@ CREATE TABLE Car_Body_Types (
     body_type_id SERIAL PRIMARY KEY,
     body_type_name VARCHAR(50) UNIQUE NOT NULL,
     icon_url VARCHAR(500),
-    sort_order INTEGER DEFAULT 0
+    sort_order INTEGER DEFAULT 0,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Car_Engine_Types (
     engine_type_id SERIAL PRIMARY KEY,
     engine_type_name VARCHAR(50) UNIQUE NOT NULL,
-    sort_order INTEGER DEFAULT 0
+    sort_order INTEGER DEFAULT 0,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Car_Transmission_Types (
     transmission_id SERIAL PRIMARY KEY,
     transmission_name VARCHAR(50) UNIQUE NOT NULL,
-    sort_order INTEGER DEFAULT 0
+    sort_order INTEGER DEFAULT 0,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Car_Drive_Types (
     drive_type_id SERIAL PRIMARY KEY,
     drive_type_name VARCHAR(50) UNIQUE NOT NULL,
-    sort_order INTEGER DEFAULT 0
+    sort_order INTEGER DEFAULT 0,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Car_Colors (
     color_id SERIAL PRIMARY KEY,
     color_name VARCHAR(50) UNIQUE NOT NULL,
     color_hex VARCHAR(7),
-    sort_order INTEGER DEFAULT 0
+    sort_order INTEGER DEFAULT 0,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Car_Features (
@@ -692,7 +718,9 @@ CREATE TABLE Login_Attempts (
     success BOOLEAN NOT NULL,
     attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     user_agent TEXT,
-    failure_reason VARCHAR(100)
+    failure_reason VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================================
@@ -1653,4 +1681,121 @@ ALTER COLUMN created_date SET DEFAULT now();
 ALTER TABLE email_verification
 ADD COLUMN updated_date TIMESTAMP;
 ALTER TABLE email_verification
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE login_attempts
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE login_attempts
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE login_attempts
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE login_attempts
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE statuses
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE statuses
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE statuses
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE statuses
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE car_brands
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE car_brands
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE car_brands
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE car_brands
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE cities
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE cities
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE cities
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE cities
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE Currencies
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE Currencies
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE Currencies
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE Currencies
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE regions
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE regions
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE regions
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE regions
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE car_colors
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE car_colors
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE car_colors
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE car_colors
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE car_body_types
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE car_body_types
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE car_body_types
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE car_body_types
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE car_transmission_types
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE car_transmission_types
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE car_transmission_types
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE car_transmission_types
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE car_drive_types
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE car_drive_types
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE car_drive_types
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE car_drive_types
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE car_engine_types
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE car_engine_types
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE car_engine_types
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE car_engine_types
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE car_colors
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE car_colors
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE car_colors
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE car_colors
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE car_engine_types
+ADD COLUMN created_date TIMESTAMP;
+ALTER TABLE car_engine_types
+ALTER COLUMN created_date SET DEFAULT now();
+ALTER TABLE car_engine_types
+ADD COLUMN updated_date TIMESTAMP;
+ALTER TABLE car_engine_types
 ADD COLUMN is_active BOOLEAN DEFAULT TRUE;

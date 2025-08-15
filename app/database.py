@@ -341,27 +341,6 @@ def with_db_session(func):
     return wrapper
 
 
-# Базовый миксин для моделей
-class TimestampMixin:
-    """Миксин для добавления временных меток"""
-    created_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_date = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class SoftDeleteMixin:
-    """Миксин для мягкого удаления"""
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-    deleted_date = db.Column(db.DateTime)
-    
-    def soft_delete(self):
-        self.is_active = False
-        self.deleted_date = datetime.utcnow()
-    
-    def restore(self):
-        self.is_active = True
-        self.deleted_date = None
-
-
 # Хелперы для работы с базой данных
 class DatabaseHelpers:
     """Вспомогательные методы для работы с базой данных"""

@@ -11,6 +11,7 @@ from app.utils.decorators import handle_errors, cache_response
 from app.utils.helpers import build_response
 
 
+
 @bp.route('/brands', methods=['GET'])
 @handle_errors
 @cache_response(timeout=3600)
@@ -43,10 +44,10 @@ def get_brands():
         schema = BrandSchema(many=True)
         result = schema.dump(brands)
     
-    return jsonify(build_response(
+    return jsonify(
         data=result,
         message="Brands retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/brands/<int:brand_id>', methods=['GET'])

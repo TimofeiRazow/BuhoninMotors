@@ -11,7 +11,7 @@ from app.utils.decorators import (
 )
 from app.utils.helpers import build_response, extract_filters_from_request
 from app.utils.pagination import create_pagination_response
-
+from app.database import db
 
 @bp.route('/', methods=['GET'])
 @handle_errors

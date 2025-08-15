@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models.base import BaseModel
-from app.database import Base, TimestampMixin, db
+from app.database import Base, db
 
 
 class NotificationChannel(BaseModel):
@@ -69,7 +69,7 @@ class NotificationTemplate(BaseModel):
         return f'<NotificationTemplate {self.template_code}>'
 
 
-class UserNotificationSettings(BaseModel, TimestampMixin):
+class UserNotificationSettings(BaseModel):
     """Настройки уведомлений пользователей"""
     __tablename__ = 'user_notification_settings'
     
