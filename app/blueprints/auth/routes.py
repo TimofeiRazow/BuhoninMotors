@@ -8,7 +8,7 @@ from app.blueprints.auth.shemas import (
 )
 from app.blueprints.auth.services import AuthService
 from app.utils.decorators import validate_json, handle_errors, auth_required, rate_limit_by_user, rate_limit_by_ip
-from app.utils.helpers import build_response, build_error_response
+from app.utils.helpers import build_error_response
 
 
 @bp.route('/register', methods=['POST'])
@@ -42,6 +42,7 @@ def register():
 def login():
     """Вход пользователя"""
     data = g.validated_data
+    print(data)
     
     user, tokens = AuthService.authenticate_user(
         identifier=data['phone_number'],
@@ -67,10 +68,10 @@ def logout():
     """Выход пользователя"""
     AuthService.logout_user()
     
-    return jsonify(build_response(
+    return jsonify(
         data=None,
         message="Logout successful"
-    ))
+    )
 
 
 @bp.route('/refresh', methods=['POST'])
@@ -80,10 +81,10 @@ def refresh():
     """Обновление access токена"""
     access_token = AuthService.refresh_access_token()
     
-    return jsonify(build_response(
-        data={'access_token': access_token},
-        message="Token refreshed successfully"
-    ))
+    return jsonify({
+        'data': {'access_token': access_token},  # Ключ должен быть 'data'
+        'message': "Token refreshed successfully"
+    })
 
 
 @bp.route('/send-verification-code', methods=['POST'])
@@ -96,10 +97,10 @@ def send_verification_code():
     
     result = AuthService.send_phone_verification(data['phone_number'])
     
-    return jsonify(build_response(
+    return jsonify(
         data={'verification_sent': True},
         message="Verification code sent successfully"
-    ))
+    )
 
 
 @bp.route('/verify-phone', methods=['POST'])
@@ -114,10 +115,10 @@ def verify_phone():
         verification_code=data['verification_code']
     )
     
-    return jsonify(build_response(
+    return jsonify(
         data={'verified': True},
         message="Phone number verified successfully"
-    ))
+    )
 
 
 @bp.route('/verify-email', methods=['POST'])
@@ -129,10 +130,10 @@ def verify_email():
     
     user = AuthService.verify_email(data['token'])
     
-    return jsonify(build_response(
+    return jsonify(
         data={'verified': True, 'user': user.to_dict()},
         message="Email verified successfully"
-    ))
+    )
 
 
 @bp.route('/reset-password', methods=['POST'])
@@ -145,10 +146,10 @@ def reset_password():
     
     AuthService.reset_password(data['identifier'])
     
-    return jsonify(build_response(
+    return jsonify(
         data={'reset_sent': True},
         message="Password reset instructions sent"
-    ))
+    )
 
 
 @bp.route('/change-password', methods=['POST'])
@@ -165,10 +166,10 @@ def change_password():
         new_password=data['new_password']
     )
     
-    return jsonify(build_response(
+    return jsonify(
         data={'password_changed': True},
         message="Password changed successfully"
-    ))
+    )
 
 
 @bp.route('/me', methods=['GET'])
@@ -176,7 +177,7 @@ def change_password():
 @auth_required
 def get_current_user():
     """Получение информации о текущем пользователе"""
-    return jsonify(build_response(
+    return jsonify(
         data=g.current_user.to_dict(),
         message="User information retrieved successfully"
-    ))
+    )

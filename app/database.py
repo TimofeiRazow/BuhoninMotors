@@ -30,7 +30,6 @@ Base = declarative_base(metadata=meta_data)
 
 # Глобальные переменные для сессий
 engine = None
-SessionLocal = None
 
 
 class DatabaseManager:
@@ -43,7 +42,7 @@ class DatabaseManager:
     
     def init_app(self, app):
         """Инициализация расширения с приложением Flask"""
-        global engine, SessionLocal
+        global engine
         
         database_url = app.config.get('DATABASE_URL')
         if not database_url:
@@ -100,8 +99,10 @@ class DatabaseManager:
     
     def get_db(self):
         """Получение сессии базы данных"""
+        print('ХУЙНЯ')
         if 'db' not in g:
-            g.db = SessionLocal()
+            g.db = db.session
+        print(' НЕ ХУЙНЯ')    
         return g.db
     
     def close_db(self, error=None):
@@ -139,7 +140,7 @@ def init_db():
     
     try:
         # Создание всех таблиц
-        Base.meta_data.create_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
         current_app.logger.info("Database tables created successfully")
         
         # Заполнение базовыми данными
@@ -154,7 +155,7 @@ def init_db():
 def reset_db():
     """Сброс базы данных"""
     try:
-        Base.meta_data.drop_all(bind=engine)
+        Base.metadata.drop_all(bind=engine)
         current_app.logger.info("Database tables dropped successfully")
         return init_db()
     except Exception as e:

@@ -436,7 +436,8 @@ class ListingService:
         }
     
     @staticmethod
-    def get_user_favorites(user_id, page=1, per_page=20):
+    def get_user_favorites(user_id, page=1, per_page=20, sort_by='date_desc', 
+                        include_expired=False, folder_name=None):
         """
         Получение избранных объявлений пользователя
         
@@ -444,22 +445,65 @@ class ListingService:
             user_id: ID пользователя
             page: Номер страницы
             per_page: Объявлений на странице
+            sort_by: Сортировка
+            include_expired: Включать ли истекшие объявления
+            folder_name: Фильтр по папке
             
         Returns:
             Избранные объявления с пагинацией
         """
         from app.models.favorite import Favorite
+        from app.models.base import get_status_by_code
         
-        query = Listing.query.join(Favorite).filter(
-            Favorite.user_id == user_id,
-            Listing.is_active == True
+        # Базовый запрос
+        query = Listing.query.join(
+            Favorite, Listing.entity_id == Favorite.entity_id
+        ).filter(
+            Favorite.user_id == user_id
         ).options(
-            joinedload(Listing.city),
-            joinedload(Listing.currency)
-        ).order_by(desc(Favorite.added_date))
+            joinedload(Listing.city).joinedload(City.region),
+            joinedload(Listing.currency),
+            joinedload(Listing.status)
+        )
+        
+        # Фильтр по папке
+        if folder_name is not None:
+            if folder_name == '':
+                # Общая папка (без названия)
+                query = query.filter(Favorite.folder_name.is_(None))
+            else:
+                query = query.filter(Favorite.folder_name == folder_name)
+        
+        # Фильтр по статусу объявлений
+        if not include_expired:
+            # Только активные объявления
+            active_status = get_status_by_code('listing_status', 'active')
+            if active_status:
+                query = query.filter(
+                    Listing.status_id == active_status.status_id,
+                    or_(
+                        Listing.expires_date.is_(None),
+                        Listing.expires_date > datetime.utcnow()
+                    )
+                )
+        
+        # Применяем сортировку
+        if sort_by == 'date_desc':
+            query = query.order_by(desc(Favorite.added_date))
+        elif sort_by == 'date_asc':
+            query = query.order_by(asc(Favorite.added_date))
+        elif sort_by == 'price_desc':
+            query = query.order_by(desc(Listing.price))
+        elif sort_by == 'price_asc':
+            query = query.order_by(asc(Listing.price))
+        elif sort_by == 'title_asc':
+            query = query.order_by(asc(Listing.title))
+        else:
+            # По умолчанию сортируем по дате добавления в избранное (новые сначала)
+            query = query.order_by(desc(Favorite.added_date))
         
         return paginate_query(query, page, per_page)
-    
+
     @staticmethod
     def get_user_listings(user_id, status=None, page=1, per_page=20):
         """

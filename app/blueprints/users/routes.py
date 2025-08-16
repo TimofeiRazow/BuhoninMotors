@@ -157,7 +157,9 @@ def get_user_stats():
     """Получение статистики пользователя"""
     try:
         user_id = get_jwt_identity()
+        print('TRALALELOTRALALA')
         db = get_db()
+        print(db)
         
         stats = UserService.get_user_statistics(db, user_id)
         schema = UserStatsSchema()

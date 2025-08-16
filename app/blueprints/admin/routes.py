@@ -9,7 +9,6 @@ from app.blueprints.admin.schemas import (
 from app.utils.decorators import (
     handle_errors, admin_required, validate_json, paginate, cache_response
 )
-from app.utils.helpers import build_response
 from app.utils.pagination import create_pagination_response
 
 
@@ -21,10 +20,10 @@ def get_dashboard():
     """Получение данных для дашборда"""
     stats = AdminService.get_dashboard_stats()
     
-    return jsonify(build_response(
+    return jsonify(
         data=stats,
         message="Dashboard data retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/moderation', methods=['GET'])
@@ -64,10 +63,10 @@ def moderate_content(moderation_id):
         notes=data.get('notes')
     )
     
-    return jsonify(build_response(
+    return jsonify(
         data=result.to_dict(),
         message=f"Content {data['action']}d successfully"
-    ))
+    )
 
 
 @bp.route('/reports', methods=['GET'])
@@ -106,11 +105,11 @@ def report_content():
         description=data.get('description')
     )
     
-    return jsonify(build_response(
+    return jsonify(
         data=report.to_dict(),
         message="Content reported successfully",
         status_code=201
-    ))
+    )
 
 
 @bp.route('/reports/<int:report_id>/resolve', methods=['POST'])
@@ -128,10 +127,10 @@ def resolve_report(report_id):
         notes=data.get('notes')
     )
     
-    return jsonify(build_response(
+    return jsonify(
         data=report.to_dict(),
         message="Report resolved successfully"
-    ))
+    )
 
 
 @bp.route('/users', methods=['GET'])
@@ -173,10 +172,10 @@ def perform_user_action(user_id):
         duration_days=data.get('duration_days')
     )
     
-    return jsonify(build_response(
+    return jsonify(
         data=result,
         message=f"User action '{data['action']}' performed successfully"
-    ))
+    )
 
 
 @bp.route('/system/health', methods=['GET'])
@@ -186,10 +185,10 @@ def get_system_health():
     """Получение состояния системы"""
     health = AdminService.get_system_health()
     
-    return jsonify(build_response(
+    return jsonify(
         data=health,
         message="System health retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/stats', methods=['GET'])
@@ -201,7 +200,7 @@ def get_admin_stats():
     stats = AdminService.get_dashboard_stats()
     schema = AdminStatsSchema()
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(stats),
         message="Admin statistics retrieved successfully"
-    ))
+    )

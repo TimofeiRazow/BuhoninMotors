@@ -9,7 +9,6 @@ from app.blueprints.media.schemas import (
 from app.utils.decorators import (
     handle_errors, auth_required, validate_json, rate_limit_by_user
 )
-from app.utils.helpers import build_response
 from app.utils.exceptions import ValidationError
 
 
@@ -49,11 +48,11 @@ def upload_file():
         
         schema = MediaFileSchema()
         
-        return jsonify(build_response(
+        return jsonify(
             data=schema.dump(media),
             message="File uploaded successfully",
             status_code=201
-        ))
+        )
         
     except RequestEntityTooLarge:
         raise ValidationError("File too large")
@@ -69,10 +68,10 @@ def get_entity_media(entity_id):
     media_files = MediaService.get_entity_media(entity_id, media_type, user_id)
     schema = MediaFileSchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(media_files),
         message="Media files retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/<int:media_id>', methods=['GET'])
@@ -84,10 +83,10 @@ def get_media_file(media_id):
     media = MediaService.get_media_file(media_id, user_id)
     schema = MediaFileSchema()
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(media),
         message="Media file retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/<int:media_id>', methods=['PUT'])
@@ -101,10 +100,10 @@ def update_media_file(media_id):
     media = MediaService.update_media(media_id, g.current_user.user_id, data)
     schema = MediaFileSchema()
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(media),
         message="Media file updated successfully"
-    ))
+    )
 
 
 @bp.route('/<int:media_id>', methods=['DELETE'])
@@ -114,10 +113,10 @@ def delete_media_file(media_id):
     """Удаление медиа файла"""
     success = MediaService.delete_media(media_id, g.current_user.user_id)
     
-    return jsonify(build_response(
+    return jsonify(
         data={'deleted': success},
         message="Media file deleted successfully"
-    ))
+    )
 
 
 @bp.route('/entity/<int:entity_id>/reorder', methods=['POST'])
@@ -134,10 +133,10 @@ def reorder_media_files(entity_id):
         media_order=data['media_order']
     )
     
-    return jsonify(build_response(
+    return jsonify(
         data={'reordered': success},
         message="Media files reordered successfully"
-    ))
+    )
 
 
 @bp.route('/<int:media_id>/download', methods=['GET'])
@@ -166,10 +165,10 @@ def generate_thumbnail(media_id):
     """Генерация миниатюры для изображения"""
     success = MediaService.generate_thumbnail(media_id)
     
-    return jsonify(build_response(
+    return jsonify(
         data={'thumbnail_generated': success},
         message="Thumbnail generated successfully" if success else "Cannot generate thumbnail"
-    ))
+    )
 
 
 @bp.route('/entity/<int:entity_id>/stats', methods=['GET'])
@@ -178,10 +177,10 @@ def get_media_stats(entity_id):
     """Получение статистики медиа файлов"""
     stats = MediaService.get_media_stats(entity_id)
     
-    return jsonify(build_response(
+    return jsonify(
         data=stats,
         message="Media statistics retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/limits', methods=['GET'])
@@ -190,10 +189,10 @@ def get_upload_limits():
     """Получение лимитов загрузки"""
     limits = MediaService.get_upload_limits()
     
-    return jsonify(build_response(
+    return jsonify(
         data=limits,
         message="Upload limits retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/multiple-upload', methods=['POST'])
@@ -234,11 +233,11 @@ def upload_multiple_files():
         
         schema = MediaFileSchema(many=True)
         
-        return jsonify(build_response(
+        return jsonify(
             data=schema.dump(uploaded_files),
             message=f"Uploaded {len(uploaded_files)} files successfully",
             status_code=201
-        ))
+        )
         
     except RequestEntityTooLarge:
         raise ValidationError("Files too large")

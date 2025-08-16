@@ -4,8 +4,8 @@
 """
 
 from functools import wraps
-from flask import request, jsonify, g
-from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from flask import request, jsonify, g, current_app
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, verify_jwt_in_request
 from marshmallow import ValidationError as MarshmallowValidationError
 from app.utils.exceptions import (
     ValidationError, AuthenticationError, AuthorizationError,
@@ -38,25 +38,109 @@ def validate_json(schema_class):
 def auth_required(f):
     """Декоратор для проверки аутентификации пользователя"""
     @wraps(f)
-    @jwt_required()
     def decorated_function(*args, **kwargs):
         try:
-            user_id = get_jwt_identity()
-            user = User.query.filter(
-                User.user_id == user_id,
-                User.is_active == True
-            ).first()
+            # Проверяем наличие заголовка Authorization
+            auth_header = request.headers.get('Authorization', '')
+            if not auth_header:
+                return jsonify({
+                    'error': 'Missing Authorization header',
+                    'message': 'Authentication required'
+                }), 401
             
-            if not user:
-                raise UserNotFoundError()
+            if not auth_header.startswith('Bearer '):
+                return jsonify({
+                    'error': 'Invalid Authorization header format',
+                    'message': 'Authorization header must start with "Bearer "'
+                }), 401
             
-            g.current_user = user
-            return f(*args, **kwargs)
+            # Извлекаем токен
+            parts = auth_header.split(' ')
+            if len(parts) != 2:
+                return jsonify({
+                    'error': 'Invalid Authorization header format',
+                    'message': 'Authorization header must contain exactly one space'
+                }), 401
+            
+            token = parts[1]
+            
+            # Проверяем формат JWT токена (должен содержать 3 части)
+            token_parts = token.split('.')
+            if len(token_parts) != 3:
+                current_app.logger.error(f"Invalid JWT format: {len(token_parts)} parts instead of 3")
+                return jsonify({
+                    'error': 'Invalid token format',
+                    'message': 'JWT token must contain exactly 3 parts separated by dots'
+                }), 401
+            
+            # Проверяем, что каждая часть не пустая
+            if not all(part.strip() for part in token_parts):
+                current_app.logger.error("JWT token contains empty parts")
+                return jsonify({
+                    'error': 'Invalid token format',
+                    'message': 'JWT token parts cannot be empty'
+                }), 401
+            
+            try:
+                # Проверяем JWT токен
+                verify_jwt_in_request()
+            except Exception as e:
+                current_app.logger.error(f"JWT verification error: {str(e)}")
+                if "Not enough segments" in str(e):
+                    return jsonify({
+                        'error': 'Malformed token',
+                        'message': 'JWT token is malformed'
+                    }), 401
+                return jsonify({
+                    'error': 'Token verification failed',
+                    'message': str(e)
+                }), 401
+            
+            # Получаем данные из токена
+            try:
+                user_id = get_jwt_identity()
+                
+                if not user_id:
+                    return jsonify({
+                        'error': 'Invalid token',
+                        'message': 'Token does not contain user identity'
+                    }), 401
+                
+                # Получаем пользователя
+                user = User.query.filter(
+                    User.user_id == int(user_id),
+                    User.is_active == True
+                ).first()
+                
+                if not user:
+                    return jsonify({
+                        'error': 'User not found',
+                        'message': 'User not found or inactive'
+                    }), 401
+                
+                # Сохраняем пользователя в g для использования в роуте
+                g.current_user = user
+                
+                return f(*args, **kwargs)
+                
+            except ValueError:
+                return jsonify({
+                    'error': 'Invalid user ID',
+                    'message': 'User ID in token is not valid'
+                }), 401
+            except Exception as e:
+                current_app.logger.error(f"User verification error: {str(e)}")
+                return jsonify({
+                    'error': 'Authentication failed',
+                    'message': 'Could not verify user'
+                }), 401
             
         except Exception as e:
-            if isinstance(e, (UserNotFoundError, AuthenticationError)):
-                raise e
-            raise AuthenticationError("Authentication failed")
+            current_app.logger.error(f"Auth decorator unexpected error: {str(e)}")
+            return jsonify({
+                'error': 'Authentication error',
+                'message': 'An unexpected authentication error occurred'
+            }), 500
     
     return decorated_function
 
@@ -364,40 +448,4 @@ def require_fields(*required_fields):
             return f(*args, **kwargs)
         
         return decorated_function
-    return decorator
-
-
-# Комбинированные декораторы для частых случаев
-def api_route(schema=None, auth=True, admin=False, pro=False, verified=False, rate_limit=None):
-    """Комбинированный декоратор для API роутов"""
-    def decorator(func):
-        # Apply decorators in correct order (from innermost to outermost)
-        decorated_func = func
-        
-        # Schema validation (innermost)
-        if schema:
-            decorated_func = validate_json(schema)(decorated_func)
-        
-        # Access control
-        if admin:
-            decorated_func = admin_required(decorated_func)
-        elif pro:
-            decorated_func = pro_user_required(decorated_func)
-        elif verified:
-            decorated_func = verified_user_required(decorated_func)
-        elif auth:
-            decorated_func = auth_required(decorated_func)
-        
-        # Rate limiting
-        if rate_limit:
-            decorated_func = rate_limit_by_user(**rate_limit)(decorated_func)
-        
-        # Logging
-        decorated_func = log_api_call(decorated_func)
-        
-        # Error handling (outermost)
-        decorated_func = handle_errors(decorated_func)
-        
-        return decorated_func
-    
     return decorator

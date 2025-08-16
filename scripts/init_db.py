@@ -891,8 +891,7 @@ def verify_database_integrity():
         from app.models.user import User
         from app.models.location import Country, Region, City
         from app.models.car import CarBrand
-        from app.models.payment import Currency
-        from app.models.category import StatusGroup, Status
+        from app.models.payment import 
         
         checks = [
             ('Users', User),

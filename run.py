@@ -12,7 +12,7 @@ app = create_app(config[config_name])
 # Создаем CLI группу для Flask команд
 cli = FlaskGroup(app)
 
-
+print(db.metadata.tables.keys())
 @app.cli.command()
 def init_db():
     """Инициализация базы данных"""

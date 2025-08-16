@@ -56,12 +56,13 @@ class User(EntityBasedModel):
             'user_type': self.user_type,
             'is_verified': self.verification_status == 'fully_verified'
         }
-        
+        print('#7')
         access_token = create_access_token(
             identity=str(self.user_id),
-            additional_claims=str(additional_claims)
+            additional_claims=additional_claims
         )
-        refresh_token = create_refresh_token(identity=self.user_id)
+        print('#8')
+        refresh_token = create_refresh_token(identity=str(self.user_id))
         
         return {
             'access_token': access_token,

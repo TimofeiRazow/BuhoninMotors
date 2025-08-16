@@ -3,6 +3,10 @@
 Модели данных для Kolesa.kz
 """
 
+from .favorite import (
+    Favorite
+)
+
 # Базовые модели
 from .base import (
     BaseModel, 
@@ -100,6 +104,7 @@ __all__ = [
     # Объявления
     'Listing', 'ListingDetails', 'ListingAttribute', 'ListingFeature',
     
+    'Favorite'
     # Медиа
     'MediaStorage', 'MediaUploadHelper',
     

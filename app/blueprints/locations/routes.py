@@ -6,7 +6,6 @@ from app.blueprints.locations.schemas import (
     CountrySchema, RegionSchema, CitySchema, LocationSearchSchema, NearbySearchSchema
 )
 from app.utils.decorators import handle_errors, cache_response, validate_json
-from app.utils.helpers import build_response
 
 
 @bp.route('/countries', methods=['GET'])
@@ -17,10 +16,10 @@ def get_countries():
     countries = LocationService.get_countries()
     schema = CountrySchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(countries),
         message="Countries retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/countries/<int:country_id>', methods=['GET'])
@@ -31,10 +30,10 @@ def get_country(country_id):
     country = LocationService.get_country(country_id)
     schema = CountrySchema()
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(country),
         message="Country retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/regions', methods=['GET'])
@@ -46,10 +45,10 @@ def get_regions():
     regions = LocationService.get_regions(country_id)
     schema = RegionSchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(regions),
         message="Regions retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/regions/<int:region_id>', methods=['GET'])
@@ -60,10 +59,10 @@ def get_region(region_id):
     region = LocationService.get_region(region_id)
     schema = RegionSchema()
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(region),
         message="Region retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/cities', methods=['GET'])
@@ -83,10 +82,10 @@ def get_cities():
     
     schema = CitySchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(cities),
         message="Cities retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/cities/<int:city_id>', methods=['GET'])
@@ -97,10 +96,10 @@ def get_city(city_id):
     city = LocationService.get_city(city_id)
     schema = CitySchema()
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(city),
         message="City retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/cities/search', methods=['GET'])
@@ -114,18 +113,18 @@ def search_cities():
     limit = request.args.get('limit', 10, type=int)
     
     if not query or len(query) < 2:
-        return jsonify(build_response(
+        return jsonify(
             data=[],
             message="Search query too short"
-        ))
+        )
     
     cities = LocationService.search_cities(query, country_id, region_id, limit)
     schema = CitySchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(cities),
         message="Cities search completed"
-    ))
+    )
 
 
 @bp.route('/search', methods=['GET'])
@@ -139,17 +138,17 @@ def search_locations():
     limit = request.args.get('limit', 10, type=int)
     
     if not query or len(query) < 2:
-        return jsonify(build_response(
+        return jsonify(
             data={'countries': [], 'regions': [], 'cities': []},
             message="Search query too short"
-        ))
+        )
     
     results = LocationService.search_locations(query, country_id, region_id, limit)
     
-    return jsonify(build_response(
+    return jsonify(
         data=results,
         message="Location search completed"
-    ))
+    )
 
 
 @bp.route('/nearby', methods=['GET'])
@@ -163,17 +162,17 @@ def find_nearby():
         radius = int(request.args.get('radius', 50))
         limit = int(request.args.get('limit', 20))
     except (TypeError, ValueError):
-        return jsonify(build_response(
+        return jsonify(
             data=[],
             message="Invalid coordinates provided"
-        )), 400
+        ), 400
     
     cities = LocationService.find_nearby_cities(latitude, longitude, radius, limit)
     
-    return jsonify(build_response(
+    return jsonify(
         data=cities,
         message="Nearby cities found"
-    ))
+    )
 
 
 @bp.route('/regions/<int:region_id>/cities', methods=['GET'])
@@ -184,10 +183,10 @@ def get_cities_by_region(region_id):
     cities = LocationService.get_cities_by_region(region_id)
     schema = CitySchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(cities),
         message="Cities retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/hierarchy', methods=['GET'])
@@ -197,10 +196,10 @@ def get_hierarchy():
     """Получение иерархии локаций"""
     hierarchy = LocationService.get_location_hierarchy()
     
-    return jsonify(build_response(
+    return jsonify(
         data=hierarchy,
         message="Location hierarchy retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/stats', methods=['GET'])
@@ -210,7 +209,7 @@ def get_stats():
     """Получение статистики локаций"""
     stats = LocationService.get_location_stats()
     
-    return jsonify(build_response(
+    return jsonify(
         data=stats,
         message="Location statistics retrieved successfully"
-    ))
+    )

@@ -9,6 +9,10 @@ from flask_limiter.util import get_remote_address
 from flask_mail import Mail
 from celery import Celery
 from .database import db
+from flask import request
+
+def skip_options_request():
+    return None if request.method == "OPTIONS" else get_remote_address()
 
 # Инициализация расширений
 
@@ -17,7 +21,7 @@ jwt = JWTManager()
 ma = Marshmallow()
 cache = Cache()
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=skip_options_request,
     default_limits=["200 per day", "50 per hour"]
 )
 mail = Mail()

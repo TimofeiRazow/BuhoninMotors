@@ -8,7 +8,6 @@ from app.blueprints.cars.schemas import (
     ColorSchema, FeatureSchema, AttributeGroupSchema
 )
 from app.utils.decorators import handle_errors, cache_response
-from app.utils.helpers import build_response
 
 
 
@@ -58,10 +57,10 @@ def get_brand(brand_id):
     brand = CarService.get_brand(brand_id)
     schema = BrandSchema()
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(brand),
         message="Brand retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/brands/<int:brand_id>/models', methods=['GET'])
@@ -89,10 +88,10 @@ def get_models_by_brand(brand_id):
         schema = ModelSchema(many=True)
         result = schema.dump(models)
     
-    return jsonify(build_response(
+    return jsonify(
         data=result,
         message="Models retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/models/<int:model_id>', methods=['GET'])
@@ -103,10 +102,10 @@ def get_model(model_id):
     model = CarService.get_model(model_id)
     schema = ModelSchema()
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(model),
         message="Model retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/models/<int:model_id>/generations', methods=['GET'])
@@ -117,10 +116,10 @@ def get_generations_by_model(model_id):
     generations = CarService.get_generations_by_model(model_id)
     schema = GenerationSchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(generations),
         message="Generations retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/body-types', methods=['GET'])
@@ -131,10 +130,10 @@ def get_body_types():
     body_types = CarService.get_body_types()
     schema = BodyTypeSchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(body_types),
         message="Body types retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/engine-types', methods=['GET'])
@@ -145,10 +144,10 @@ def get_engine_types():
     engine_types = CarService.get_engine_types()
     schema = EngineTypeSchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(engine_types),
         message="Engine types retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/transmission-types', methods=['GET'])
@@ -159,10 +158,10 @@ def get_transmission_types():
     transmission_types = CarService.get_transmission_types()
     schema = TransmissionTypeSchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(transmission_types),
         message="Transmission types retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/drive-types', methods=['GET'])
@@ -173,10 +172,10 @@ def get_drive_types():
     drive_types = CarService.get_drive_types()
     schema = DriveTypeSchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(drive_types),
         message="Drive types retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/colors', methods=['GET'])
@@ -187,10 +186,10 @@ def get_colors():
     colors = CarService.get_colors()
     schema = ColorSchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(colors),
         message="Colors retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/features', methods=['GET'])
@@ -204,10 +203,10 @@ def get_features():
     features = CarService.get_features(category_id, search)
     schema = FeatureSchema(many=True)
     
-    return jsonify(build_response(
+    return jsonify(
         data=schema.dump(features),
         message="Features retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/attributes', methods=['GET'])
@@ -233,10 +232,10 @@ def get_attributes():
     else:
         result = CarService.get_attributes_grouped()
     
-    return jsonify(build_response(
+    return jsonify(
         data=result,
         message="Attributes retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/hierarchy', methods=['GET'])
@@ -249,10 +248,10 @@ def get_hierarchy():
     
     hierarchy = CarService.get_car_hierarchy(brand_id, model_id)
     
-    return jsonify(build_response(
+    return jsonify(
         data=hierarchy,
         message="Car hierarchy retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/reference-data', methods=['GET'])
@@ -262,10 +261,10 @@ def get_reference_data():
     """Получение всех справочных данных"""
     data = CarService.get_reference_data()
     
-    return jsonify(build_response(
+    return jsonify(
         data=data,
         message="Reference data retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/years', methods=['GET'])
@@ -275,10 +274,10 @@ def get_years():
     """Получение диапазона доступных годов"""
     years_data = CarService.get_years_range()
     
-    return jsonify(build_response(
+    return jsonify(
         data=years_data,
         message="Years range retrieved successfully"
-    ))
+    )
 
 
 @bp.route('/search', methods=['GET'])
@@ -290,14 +289,14 @@ def search_cars():
     limit = request.args.get('limit', 10, type=int)
     
     if not query or len(query) < 2:
-        return jsonify(build_response(
+        return jsonify(
             data={'brands': [], 'models': []},
             message="Search query too short"
-        ))
+        )
     
     results = CarService.search_brands_and_models(query, limit)
     
-    return jsonify(build_response(
+    return jsonify(
         data=results,
         message="Search completed successfully"
-    ))
+    )

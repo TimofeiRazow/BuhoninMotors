@@ -397,34 +397,6 @@ def extract_filters_from_request() -> Dict[str, Any]:
     return filters
 
 
-def build_response(data: Any, message: str = None, status_code: int = 200, 
-                  meta: Dict = None) -> tuple:
-    """
-    Создание стандартизированного ответа API
-    
-    Args:
-        data: Данные ответа
-        message: Сообщение
-        status_code: HTTP статус код
-        meta: Метаданные (пагинация, статистика)
-        
-    Returns:
-        Кортеж (response_dict, status_code)
-    """
-    response = {
-        'success': 200 <= status_code < 300,
-        'data': data
-    }
-    
-    if message:
-        response['message'] = message
-    
-    if meta:
-        response['meta'] = meta
-    
-    return response, status_code
-
-
 def build_error_response(message: str, status_code: int = 400, 
                         errors: Dict = None) -> tuple:
     """

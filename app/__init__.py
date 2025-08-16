@@ -5,6 +5,8 @@ from app.extensions import db, jwt, migrate, ma, cache, limiter
 from app.config import Config
 
 
+
+
 def create_app(config_class=Config):
     """Factory function для создания Flask приложения"""
     app = Flask(__name__)

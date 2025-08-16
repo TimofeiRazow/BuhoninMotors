@@ -86,14 +86,15 @@ class AuthService:
         Raises:
             InvalidCredentialsError: Если учетные данные неверны
         """
+        print('№!')
         ip_address = get_client_ip()
         user_agent = get_user_agent()
-        
+        print('#2')
         # Проверяем лимит попыток входа
         if not LoginAttempt.check_rate_limit(ip_address):
             from app.utils.exceptions import RateLimitError
             raise RateLimitError("Too many login attempts. Try again later.")
-        
+        print('#3')
         # Ищем пользователя по телефону или email
         user = None
         if '@' in identifier:
@@ -103,6 +104,7 @@ class AuthService:
                 normalized_phone = normalize_phone_number(identifier)
                 user = User.find_by_phone(normalized_phone)
             except ValueError:
+                print('Ошибка здесь')
                 pass
         
         # Проверяем пароль
@@ -116,7 +118,7 @@ class AuthService:
                 failure_reason="Invalid credentials"
             )
             raise InvalidCredentialsError()
-        
+        print('#4')
         # Логируем успешную попытку
         LoginAttempt.log_attempt(
             identifier=identifier,
@@ -124,13 +126,12 @@ class AuthService:
             success=True,
             user_agent=user_agent
         )
-        
+        print('#5')
         # Обновляем время последнего входа
         user.update_last_login()
-        
+        print('#6')
         # Генерируем токены
         tokens = user.generate_tokens()
-        
         return user, tokens
     
     @staticmethod
@@ -276,7 +277,7 @@ class AuthService:
             
             access_token = create_access_token(
                 identity=str(user_id),
-                additional_claims=str(additional_claims)
+                additional_claims=additional_claims
             )
             
             return access_token
